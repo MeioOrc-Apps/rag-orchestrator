@@ -80,9 +80,32 @@ export async function triggerSync(): Promise<SyncResult> {
   return res.json()
 }
 
-export async function listFiles(status?: string): Promise<ProcessedFile[]> {
-  const url = status ? `${BASE}/files?status=${encodeURIComponent(status)}` : `${BASE}/files`
-  const res = await fetch(url)
+export interface FilesQuery {
+  status?: string
+  folder_id?: string
+  sort_by?: 'created_at' | 'source_path' | 'status'
+  order?: 'asc' | 'desc'
+  limit?: number
+  offset?: number
+}
+
+export interface PaginatedFiles {
+  items: ProcessedFile[]
+  total: number
+  limit: number
+  offset: number
+}
+
+export async function listFiles(query: FilesQuery = {}): Promise<PaginatedFiles> {
+  const params = new URLSearchParams()
+  if (query.status)    params.set('status', query.status)
+  if (query.folder_id) params.set('folder_id', query.folder_id)
+  if (query.sort_by)   params.set('sort_by', query.sort_by)
+  if (query.order)     params.set('order', query.order)
+  if (query.limit != null)  params.set('limit', String(query.limit))
+  if (query.offset != null) params.set('offset', String(query.offset))
+  const qs = params.toString()
+  const res = await fetch(qs ? `${BASE}/files?${qs}` : `${BASE}/files`)
   if (!res.ok) throw new Error('Failed to fetch files')
   return res.json()
 }
