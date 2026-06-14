@@ -120,4 +120,30 @@ backend/tests/
 
 ---
 
-## Etapa 4 — Integração LightRAG (pendente)
+## Etapa 4 — Integração LightRAG ✅ (2026-06-14)
+
+**Branch:** `feat/etapa-4-lightrag` → merged na `main`
+
+**Comportamentos implementados:**
+- `LightRAGClient.login()`: POST /login com form, armazena token; credencial inválida → `LightRAGAuthError`.
+- `LightRAGClient.trigger_scan()`: POST /documents/scan com `Authorization: Bearer`; sem token → login primeiro.
+- Token expirado (401) → re-login uma vez, retry; segundo 401 → `LightRAGScanError`.
+- Pipeline (sync route): chama `trigger_scan` apenas quando `processed > 0`; se falhar → `scan_triggered=False` mas não bloqueia.
+- `POST /api/sync` agora retorna `scan_triggered` real.
+
+**Testes:** 85 backend verdes (todos mockados — nenhuma chamada real ao LightRAG).
+
+**Decisões:**
+- Exceção do LightRAG é capturada e logada; não retorna 5xx — sync sempre completa.
+- `LightRAGClient` instanciado dentro da rota (stateless por request). Token em memória por instância.
+
+**Estrutura adicionada:**
+```
+backend/app/lightrag_client.py  (LightRAGClient, LightRAGAuthError, LightRAGScanError)
+backend/tests/test_lightrag_client.py
+backend/tests/test_lightrag_integration.py
+```
+
+---
+
+## Etapa 5 — Integração Docling (pendente)
