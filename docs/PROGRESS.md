@@ -146,4 +146,27 @@ backend/tests/test_lightrag_integration.py
 
 ---
 
-## Etapa 5 — Integração Docling (pendente)
+## Etapa 5 — Integração Docling ✅ (2026-06-14)
+
+**Branch:** `feat/etapa-5-docling` → merged na `main`
+
+**Comportamentos implementados:**
+- `DoclingClient.convert(path)`: POST `/v1/convert/source` com payload correto (sources, options com do_ocr=false); extrai `document.md_content`; erro HTTP/network → `DoclingError`.
+- Rota `docling`: arquivo convertido salvo como `{stem}.md` em `INPUT_DIR/<dest_subdir>/...` preservando estrutura relativa.
+- `DoclingError` → `failed` com mensagem; lote continua (arquivo direto do mesmo lote é processado).
+- Arquivo tipo desconhecido → `failed`, Docling não é chamado.
+- Dedup aplica também para docling: mesmo hash → skip, sem reconversão.
+- `run_pipeline` aceita `docling_client` opcional; sync route passa `DoclingClient(settings.docling_base_url)`.
+
+**Testes:** 96 backend verdes. 6 frontend verdes.
+
+**Estrutura adicionada:**
+```
+backend/app/docling_client.py  (DoclingClient, DoclingError)
+backend/tests/test_docling_client.py
+backend/tests/test_docling_pipeline.py
+```
+
+---
+
+## Etapa 6 — Scheduler (pendente)
