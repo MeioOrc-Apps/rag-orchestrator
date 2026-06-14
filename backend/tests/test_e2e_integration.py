@@ -3,7 +3,7 @@
 Require all three services running (see docker-compose.integration.yml).
 
 Run with:
-    pytest tests/test_e2e_integration.py -v -m integration
+    pytest tests/test_e2e_integration.py -v -m e2e
 """
 import os
 import pytest
@@ -20,13 +20,13 @@ LIGHTRAG_PASS = os.getenv("LIGHTRAG_PASSWORD", "admin123")
 # Docling
 # ---------------------------------------------------------------------------
 
-@pytest.mark.integration
+@pytest.mark.e2e
 def test_docling_health():
     r = httpx.get(f"{DOCLING_URL}/health", timeout=10)
     assert r.status_code == 200
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 def test_docling_converts_url_to_markdown():
     """Convert a small public PDF via URL (requires internet in container)."""
     payload = {
@@ -58,13 +58,13 @@ def test_docling_converts_url_to_markdown():
 # LightRAG
 # ---------------------------------------------------------------------------
 
-@pytest.mark.integration
+@pytest.mark.e2e
 def test_lightrag_health():
     r = httpx.get(f"{LIGHTRAG_URL}/health", timeout=10)
     assert r.status_code == 200
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 def test_lightrag_login_returns_token():
     r = httpx.post(
         f"{LIGHTRAG_URL}/login",
@@ -77,7 +77,7 @@ def test_lightrag_login_returns_token():
     assert len(body["access_token"]) > 10
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 def test_lightrag_scan_with_valid_token():
     # login first
     login = httpx.post(
@@ -101,13 +101,13 @@ def test_lightrag_scan_with_valid_token():
 # Orchestrator
 # ---------------------------------------------------------------------------
 
-@pytest.mark.integration
+@pytest.mark.e2e
 def test_orchestrator_sync_status():
     r = httpx.get(f"{ORCHESTRATOR_URL}/api/sync/status", timeout=10)
     assert r.status_code == 200
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 def test_orchestrator_folders_crud():
     # create
     r = httpx.post(
@@ -129,7 +129,7 @@ def test_orchestrator_folders_crud():
     assert r.status_code == 204
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 def test_orchestrator_sync_pipeline_with_live_services():
     """Full pipeline: drop a .md file into the container volume → sync → check file recorded.
 

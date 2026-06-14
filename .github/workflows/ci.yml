@@ -54,9 +54,9 @@ jobs:
           LIGHTRAG_USERNAME: admin
           LIGHTRAG_PASSWORD: admin123
           LIGHTRAG_INPUT_DIR: /tmp/lightrag-inputs
-          DEFAULT_OWNER_USERNAME: default
+          DEFAULT_OWNER_USERNAME: sergio
           SCAN_INTERVAL_MINUTES: "30"
-        run: pytest tests/ -x -q -m "not integration"
+        run: pytest tests/ -x -q -m "not e2e"
 
   test-frontend:
     name: Frontend — tests
