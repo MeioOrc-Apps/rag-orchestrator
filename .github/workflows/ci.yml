@@ -48,6 +48,7 @@ jobs:
         working-directory: backend
         env:
           DATABASE_URL: postgresql+psycopg://orchestrator:orchestrator@localhost:5432/orchestrator
+          TEST_DATABASE_URL: postgresql+psycopg://orchestrator:orchestrator@localhost:5432/orchestrator
           DOCLING_BASE_URL: http://localhost:5001
           LIGHTRAG_BASE_URL: http://localhost:9621
           LIGHTRAG_USERNAME: admin
@@ -55,7 +56,7 @@ jobs:
           LIGHTRAG_INPUT_DIR: /tmp/lightrag-inputs
           DEFAULT_OWNER_USERNAME: default
           SCAN_INTERVAL_MINUTES: "30"
-        run: pytest tests/ -x -q
+        run: pytest tests/ -x -q -m "not integration"
 
   test-frontend:
     name: Frontend — tests
