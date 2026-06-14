@@ -222,4 +222,33 @@ frontend/src/api.ts   (getSyncStatus, triggerSync, listFiles adicionados)
 
 ---
 
-## Etapa 8 — Empacotamento e catálogo (pendente)
+## Etapa 8 — Empacotamento e catálogo ✅ (2026-06-14)
+
+**Branch:** `feat/etapa-8-packaging` → merged na `main`
+
+**Artefatos criados (não-TDD — infra/config):**
+- `Dockerfile` multi-stage: Node 22 builda o frontend; Python 3.12-slim serve API + estáticos.
+- `docker-compose.prod.yml`: serviços `db` (postgres:16) + `app` (rag-orchestrator); volume compartilhado `/DATA/AppData/lightrag/inputs`.
+- `.github/workflows/ci.yml`: jobs `test-backend` (pytest com postgres service) + `test-frontend` (vitest) → gate → `build-and-push` (multi-arch amd64/arm64 para ghcr.io, apenas em push na main).
+- `Apps/RagOrchestrator/docker-compose.yml` no casaos-appstore: padrão `x-casaos` com `tips.before_install` cobrindo LightRAG, Docling e volume compartilhado.
+- `.env.example` com todas as variáveis obrigatórias.
+- `backend/app/main.py` atualizado com rota SPA catch-all (`/{full_path:path}`); no-op quando `frontend/dist` ausente (sem impacto nos testes).
+- `backend/pyproject.toml` atualizado com `aiofiles>=23.0` (requerido pelo StaticFiles do FastAPI).
+
+**Testes:** 107 backend + 18 frontend = 125 total, todos verdes.
+
+**Decisões:**
+- Imagem única (API + frontend estático) para simplificar deploy; sem reverse proxy nginx necessário.
+- `CMD`: `alembic upgrade head && uvicorn ...` — migrations rodam no startup do container (idempotente).
+- Volume `/DATA/AppData/lightrag/inputs` compartilhado com o app LightRAG do CasaOS.
+- `extra_hosts: host.docker.internal:host-gateway` para atingir serviços no host (LightRAG, Docling).
+- SPA fallback: serve arquivo real se existir; senão `index.html`; 404 se dist ausente.
+
+**Estrutura adicionada:**
+```
+Dockerfile
+docker-compose.prod.yml
+.env.example
+.github/workflows/ci.yml
+Apps/RagOrchestrator/docker-compose.yml  (casaos-appstore)
+```

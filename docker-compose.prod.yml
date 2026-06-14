@@ -1,0 +1,47 @@
+name: rag-orchestrator
+
+networks:
+  rag-network:
+    driver: bridge
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    networks:
+      - rag-network
+    environment:
+      POSTGRES_DB: orchestrator
+      POSTGRES_USER: orchestrator
+      POSTGRES_PASSWORD: orchestrator
+    volumes:
+      - /DATA/AppData/rag-orchestrator/db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "orchestrator"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    image: ghcr.io/sergiosjs/rag-orchestrator:latest
+    restart: unless-stopped
+    networks:
+      - rag-network
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://orchestrator:orchestrator@db:5432/orchestrator
+      DOCLING_BASE_URL: http://host.docker.internal:5001
+      LIGHTRAG_BASE_URL: http://host.docker.internal:9621
+      LIGHTRAG_USERNAME: admin
+      LIGHTRAG_PASSWORD: admin123
+      LIGHTRAG_INPUT_DIR: /data/inputs
+      DEFAULT_OWNER_USERNAME: default
+      SCAN_INTERVAL_MINUTES: "30"
+    volumes:
+      - /DATA/AppData/lightrag/inputs:/data/inputs
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
