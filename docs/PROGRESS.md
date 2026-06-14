@@ -196,4 +196,30 @@ backend/tests/test_scheduler.py
 
 ---
 
-## Etapa 7 — Frontend completo (pendente)
+## Etapa 7 — Frontend completo ✅ (2026-06-14)
+
+**Branch:** `feat/etapa-7-frontend` → merged na `main`
+
+**Comportamentos implementados (backend):**
+- `GET /api/files?status=...&folder_id=...` lista `processed_files` com filtro opcional; retorna ordenado por `created_at desc`.
+
+**Comportamentos implementados (frontend):**
+- `StatusPage`: mostra último sync (ou "Never synced"); botão "Sync Now" chama `POST /api/sync`; loading state (`Syncing…`, disabled); atualiza resultado ao concluir; mostra `scan_triggered`.
+- `FilesPage`: lista arquivos com badge de status; mostra `error_message` nos `failed`; botões de filtro por status (all/done/failed/processing/skipped); "No files found" quando lista vazia.
+- `App.tsx`: navegação por tabs (Status / Folders / Files).
+
+**Testes:** 107 backend + 18 frontend = 125 total, todos verdes.
+
+**Estrutura adicionada:**
+```
+backend/app/routers/files.py
+backend/app/schemas/files.py
+frontend/src/components/StatusPage.tsx + StatusPage.test.tsx
+frontend/src/components/FilesPage.tsx + FilesPage.test.tsx
+frontend/src/App.tsx  (reescrito com navegação)
+frontend/src/api.ts   (getSyncStatus, triggerSync, listFiles adicionados)
+```
+
+---
+
+## Etapa 8 — Empacotamento e catálogo (pendente)
