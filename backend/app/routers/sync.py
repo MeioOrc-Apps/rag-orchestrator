@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends
@@ -14,6 +15,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/sync", tags=["sync"])
 
+_last_sync_result: dict | None = None
+
 
 def _default_owner(db: Session) -> User:
     from app.config import Settings
@@ -25,8 +28,8 @@ def _default_owner(db: Session) -> User:
     return user
 
 
-@router.post("")
-def trigger_sync(db: Session = Depends(get_db)):
+def _execute_sync(db: Session) -> dict:
+    global _last_sync_result
     from app.config import Settings
     settings = Settings()
     owner = _default_owner(db)
@@ -54,9 +57,41 @@ def trigger_sync(db: Session = Depends(get_db)):
         except (LightRAGScanError, Exception) as exc:
             logger.warning("LightRAG scan failed: %s", exc)
 
-    return {
+    _last_sync_result = {
+        "last_run": datetime.now(timezone.utc).isoformat(),
         "processed": result["processed"],
         "skipped": result["skipped"],
         "failed": result["failed"],
         "scan_triggered": scan_triggered,
     }
+    return _last_sync_result
+
+
+@router.post("")
+def trigger_sync(db: Session = Depends(get_db)):
+    return _execute_sync(db)
+
+
+@router.get("/status")
+def sync_status():
+    if _last_sync_result is None:
+        return {"last_run": None}
+    return _last_sync_result
+
+
+def run_sync_job() -> None:
+    """Standalone job called by the scheduler (manages its own DB session)."""
+    from app.config import Settings
+    from app.database import get_engine, get_session_factory
+
+    settings = Settings()
+    engine = get_engine(settings.database_url)
+    factory = get_session_factory(engine)
+    db = factory()
+    try:
+        _execute_sync(db)
+    except Exception as exc:
+        logger.error("Scheduled sync failed: %s", exc)
+    finally:
+        db.close()
+        engine.dispose()
