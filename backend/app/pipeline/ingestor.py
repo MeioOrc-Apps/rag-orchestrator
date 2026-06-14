@@ -2,6 +2,7 @@ import shutil
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
@@ -9,21 +10,23 @@ from app.models import ProcessedFile, WatchedFolder
 from app.pipeline.router import route as get_route
 from app.pipeline.scanner import compute_hash, scan
 
+if TYPE_CHECKING:
+    from app.docling_client import DoclingClient
+
 
 def run_pipeline(
     session: Session,
     folders: list[WatchedFolder],
     owner_id: uuid.UUID,
     input_dir: Path,
+    docling_client: "DoclingClient | None" = None,
 ) -> dict:
-    total_processed = 0
-    total_skipped = 0
-    total_failed = 0
+    total_processed = total_skipped = total_failed = 0
 
     for folder in folders:
         if not folder.enabled:
             continue
-        r = _process_folder(session, folder, owner_id, input_dir)
+        r = _process_folder(session, folder, owner_id, input_dir, docling_client)
         total_processed += r["processed"]
         total_skipped += r["skipped"]
         total_failed += r["failed"]
@@ -36,7 +39,10 @@ def _process_folder(
     folder: WatchedFolder,
     owner_id: uuid.UUID,
     input_dir: Path,
+    docling_client: "DoclingClient | None",
 ) -> dict:
+    from app.docling_client import DoclingError
+
     processed = skipped = failed = 0
     source_dir = Path(folder.host_path)
     files = scan(source_dir, recursive=folder.recursive)
@@ -88,9 +94,30 @@ def _process_folder(
                     pf.error_message = str(exc)
                     session.commit()
                     failed += 1
-            else:
-                # docling handled in Etapa 5 — leave as processing for now
-                pass
+
+            elif route_name == "docling":
+                if docling_client is None:
+                    pf.status = "failed"
+                    pf.error_message = "Docling client not configured"
+                    session.commit()
+                    failed += 1
+                    continue
+                try:
+                    md_content = docling_client.convert(str(file_path))
+                    dest_name = file_path.stem + ".md"
+                    dest = _save_markdown(
+                        md_content, dest_name, file_path, source_dir, input_dir, folder.dest_subdir
+                    )
+                    pf.dest_path = str(dest)
+                    pf.status = "done"
+                    pf.processed_at = datetime.now(timezone.utc)
+                    session.commit()
+                    processed += 1
+                except DoclingError as exc:
+                    pf.status = "failed"
+                    pf.error_message = str(exc)
+                    session.commit()
+                    failed += 1
 
         except Exception:
             failed += 1
@@ -135,4 +162,19 @@ def _copy_direct(
     dest = input_dir / dest_subdir / relative
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(file_path, dest)
+    return dest
+
+
+def _save_markdown(
+    content: str,
+    dest_name: str,
+    file_path: Path,
+    source_dir: Path,
+    input_dir: Path,
+    dest_subdir: str,
+) -> Path:
+    relative = file_path.relative_to(source_dir).parent / dest_name
+    dest = input_dir / dest_subdir / relative
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(content, encoding="utf-8")
     return dest

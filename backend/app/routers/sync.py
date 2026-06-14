@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db
+from app.docling_client import DoclingClient
 from app.lightrag_client import LightRAGClient, LightRAGScanError
 from app.models import User, WatchedFolder
 from app.pipeline.ingestor import run_pipeline
@@ -37,7 +38,8 @@ def trigger_sync(db: Session = Depends(get_db)):
     )
 
     input_dir = Path(settings.lightrag_input_dir)
-    result = run_pipeline(db, folders, owner.id, input_dir)
+    docling = DoclingClient(settings.docling_base_url)
+    result = run_pipeline(db, folders, owner.id, input_dir, docling_client=docling)
 
     scan_triggered = False
     if result["processed"] > 0:
