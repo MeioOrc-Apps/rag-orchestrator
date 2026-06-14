@@ -169,4 +169,31 @@ backend/tests/test_docling_pipeline.py
 
 ---
 
-## Etapa 6 — Scheduler (pendente)
+## Etapa 6 — Scheduler ✅ (2026-06-14)
+
+**Branch:** `feat/etapa-6-scheduler` → merged na `main`
+
+**Comportamentos implementados:**
+- `create_and_configure_scheduler(interval_minutes, job_func)`: retorna `BackgroundScheduler` com job `sync_pipeline` registrado com `IntervalTrigger`.
+- Job aponta para `run_sync_job` — mesma lógica do `POST /api/sync`, mas com sessão própria.
+- `GET /api/sync/status`: retorna `{last_run: null}` antes do primeiro sync; depois retorna `{last_run, processed, skipped, failed, scan_triggered}`.
+- Lifespan do FastAPI: `scheduler.start()` no startup, `scheduler.shutdown(wait=False)` no shutdown — testado via mock.
+
+**Testes:** 104 backend verdes. Sem sleep real — testa configuração do job, não passagem de tempo.
+
+**Decisões:**
+- `_last_sync_result` é global de módulo; reset via fixture `autouse` em testes para evitar poluição.
+- `run_sync_job` cria e descarta engine/session própria (evita compartilhamento com web requests).
+- APScheduler 3.x instalado (`BackgroundScheduler` + `IntervalTrigger`); teste de intervalo usa introspection adaptável.
+
+**Estrutura adicionada:**
+```
+backend/app/scheduler.py    (create_and_configure_scheduler)
+backend/app/routers/sync.py (GET /status + _execute_sync + run_sync_job)
+backend/app/main.py         (lifespan com scheduler start/stop)
+backend/tests/test_scheduler.py
+```
+
+---
+
+## Etapa 7 — Frontend completo (pendente)
