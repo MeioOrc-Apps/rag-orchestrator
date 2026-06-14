@@ -27,4 +27,4 @@ COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 ENV PYTHONPATH=/app
 EXPOSE 8000
 
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+CMD ["sh", "-c", "alembic upgrade head && python -c 'from app.config import Settings; from app.database import get_engine, get_session_factory; from app.seed import seed_from_config; s=Settings(); e=get_engine(s.database_url); f=get_session_factory(e); db=f(); seed_from_config(db); db.close(); e.dispose()' && uvicorn app.main:app --host 0.0.0.0 --port 8000"]

@@ -150,6 +150,75 @@ npm run dev
 
 Frontend at `http://localhost:5173` — API calls are proxied to `:8000` via Vite's proxy config.
 
+## Integration testing (all three services)
+
+Run the full stack locally with a single compose command:
+
+```bash
+docker compose -f docker-compose.integration.yml up --build -d
+```
+
+This brings up:
+
+| Service | Image | Port |
+|---|---|---|
+| PostgreSQL | `postgres:16-alpine` | 5432 |
+| Docling Serve | `ghcr.io/docling-project/docling-serve-cpu:latest` | 5001 |
+| LightRAG | `ghcr.io/hkuds/lightrag:latest` | 9621 |
+| Orchestrator | built from `./Dockerfile` | 8000 |
+
+### Prerequisites for LightRAG
+
+LightRAG needs an LLM and an embedding model. The defaults in `docker-compose.integration.yml` use:
+
+- **LLM**: OpenRouter (set `LLM_API_KEY` env var, or edit the compose file to use Ollama)
+- **Embeddings**: Ollama on the host with `bge-m3:latest`
+
+To use Ollama for both:
+
+```bash
+# start Ollama (if not already running)
+ollama serve &
+ollama pull bge-m3
+ollama pull qwen2.5:14b   # or any model you prefer
+```
+
+Then in `docker-compose.integration.yml`, uncomment the Ollama LLM section and comment out the OpenRouter section.
+
+> **Note:** LightRAG's `/login` and `/documents/scan` endpoints respond even without valid LLM/embedding credentials — so most integration tests pass. Only actual document indexing requires a working LLM and embedding backend.
+
+### Wait for services to be healthy
+
+```bash
+docker compose -f docker-compose.integration.yml ps
+# all services should show "healthy" before running tests
+```
+
+### Run integration tests
+
+```bash
+cd backend
+source .venv/bin/activate
+pytest tests/test_e2e_integration.py -v -m integration
+```
+
+Or against a running stack on a different host:
+
+```bash
+ORCHESTRATOR_BASE_URL=http://myserver:8000 \
+LIGHTRAG_BASE_URL=http://myserver:9621 \
+DOCLING_BASE_URL=http://myserver:5001 \
+pytest tests/test_e2e_integration.py -v -m integration
+```
+
+### Tear down
+
+```bash
+docker compose -f docker-compose.integration.yml down -v   # -v removes volumes
+```
+
+---
+
 ## Running tests
 
 ### Backend tests

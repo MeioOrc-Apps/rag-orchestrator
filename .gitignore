@@ -25,3 +25,8 @@ pgdata/
 .vscode/
 .idea/
 .DS_Store
+
+# Claude Code / AI agent artifacts
+.agents/
+.kilocode/
+skills-lock.json

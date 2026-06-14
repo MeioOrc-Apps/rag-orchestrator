@@ -1,0 +1,119 @@
+name: rag-integration
+
+networks:
+  rag-net:
+    driver: bridge
+
+volumes:
+  pgdata:
+  lightrag_storage:
+  lightrag_inputs:
+  docling_cache:
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    networks:
+      - rag-net
+    environment:
+      POSTGRES_USER: orchestrator
+      POSTGRES_PASSWORD: orchestrator
+      POSTGRES_DB: orchestrator
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orchestrator"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  docling:
+    image: ghcr.io/docling-project/docling-serve-cpu:latest
+    networks:
+      - rag-net
+    ports:
+      - "5001:5001"
+    volumes:
+      - docling_cache:/opt/app-root/src/.cache
+    environment:
+      - DOCLING_SERVE_HOST=0.0.0.0
+      - DOCLING_SERVE_PORT=5001
+      - DOCLING_SERVE_ENABLE_UI=1
+      - DOCLING_SERVE_LOAD_MODELS_AT_BOOT=false
+      - UVICORN_WORKERS=1
+      - DOCLING_NUM_THREADS=2
+      - DOCLING_SERVE_MAX_NUM_PAGES=100
+      - HF_HOME=/opt/app-root/src/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      start_period: 120s
+      retries: 5
+
+  lightrag:
+    image: ghcr.io/hkuds/lightrag:latest
+    networks:
+      - rag-net
+    ports:
+      - "9621:9621"
+    volumes:
+      - lightrag_storage:/app/data/rag_storage
+      - lightrag_inputs:/app/data/inputs
+    environment:
+      - WORKING_DIR=/app/data/rag_storage
+      - INPUT_DIR=/app/data/inputs
+      - HOST=0.0.0.0
+      - PORT=9621
+      # LLM — OpenRouter (set LLM_API_KEY in your .env or env for actual indexing)
+      - LLM_BINDING=openai
+      - LLM_BINDING_HOST=https://openrouter.ai/api/v1
+      - LLM_BINDING_API_KEY=${LLM_API_KEY:-integration-test-dummy-key}
+      - LLM_MODEL=google/gemini-2.5-flash
+      # Embedding — Ollama on host (required for actual document indexing)
+      - EMBEDDING_BINDING=ollama
+      - EMBEDDING_BINDING_HOST=http://host.docker.internal:11434
+      - EMBEDDING_MODEL=bge-m3:latest
+      - EMBEDDING_DIM=1024
+      - OLLAMA_EMBEDDING_NUM_CTX=8192
+      # Auth
+      - TOKEN_SECRET=integration-test-secret-must-be-at-least-32-chars
+      - AUTH_ACCOUNTS=admin:admin123
+      # Storage (file-based, no external DB needed)
+      - LIGHTRAG_KV_STORAGE=JsonKVStorage
+      - LIGHTRAG_DOC_STATUS_STORAGE=JsonDocStatusStorage
+      - LIGHTRAG_GRAPH_STORAGE=NetworkXStorage
+      - LIGHTRAG_VECTOR_STORAGE=NanoVectorDBStorage
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:9621/health', timeout=5)"]
+      interval: 15s
+      timeout: 10s
+      start_period: 60s
+      retries: 10
+
+  backend:
+    build: .
+    networks:
+      - rag-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      lightrag:
+        condition: service_healthy
+      docling:
+        condition: service_healthy
+    ports:
+      - "8001:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://orchestrator:orchestrator@postgres:5432/orchestrator
+      DOCLING_BASE_URL: http://docling:5001
+      LIGHTRAG_BASE_URL: http://lightrag:9621
+      LIGHTRAG_USERNAME: admin
+      LIGHTRAG_PASSWORD: admin123
+      LIGHTRAG_INPUT_DIR: /data/inputs
+      DEFAULT_OWNER_USERNAME: default
+      SCAN_INTERVAL_MINUTES: "30"
+    volumes:
+      - lightrag_inputs:/data/inputs

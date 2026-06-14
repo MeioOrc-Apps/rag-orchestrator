@@ -90,74 +90,53 @@ export function FilesPage() {
       </div>
 
       {/* ── Filters bar ───────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16, alignItems: 'center' }}>
-
-        {/* Status tabs */}
-        <div role="group" aria-label="Status filters" className="filter-tabs">
-          {STATUS_FILTERS.map(f => (
-            <button
-              key={f}
-              className="filter-tab"
-              onClick={() => handleStatusFilter(f)}
-              aria-pressed={f === 'all' ? status === undefined : status === f}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
-
-        {/* Folder selector */}
-        {folders.length > 0 && (
-          <select
-            value={folderId ?? ''}
-            onChange={handleFolderChange}
-            style={{
-              padding: '5px 10px',
-              borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--border)',
-              fontSize: 12,
-              color: folderId ? 'var(--text-strong)' : 'var(--text-muted)',
-              background: 'var(--surface)',
-              cursor: 'pointer',
-            }}
-          >
-            <option value="">All folders</option>
-            {folders.map(f => (
-              <option key={f.id} value={f.id}>
-                {f.host_path} → {f.dest_subdir}
-              </option>
+      <div className="files-toolbar">
+        {/* Row 1: status tabs + folder select */}
+        <div className="files-toolbar-row">
+          <div role="group" aria-label="Status filters" className="filter-tabs">
+            {STATUS_FILTERS.map(f => (
+              <button
+                key={f}
+                className="filter-tab"
+                onClick={() => handleStatusFilter(f)}
+                aria-pressed={f === 'all' ? status === undefined : status === f}
+              >
+                {f}
+              </button>
             ))}
-          </select>
-        )}
+          </div>
 
-        {/* Sort controls */}
-        <div style={{ display: 'flex', gap: 4, marginLeft: 'auto', alignItems: 'center' }}>
-          <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-            Sort
-          </span>
-          {SORT_OPTIONS.map(opt => (
-            <button
-              key={opt.value}
-              onClick={() => handleSortBy(opt.value)}
-              style={{
-                padding: '4px 10px',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border)',
-                fontSize: 12,
-                cursor: 'pointer',
-                background: sortBy === opt.value ? 'var(--accent-dim)' : 'var(--surface)',
-                color: sortBy === opt.value ? 'var(--accent)' : 'var(--text-muted)',
-                fontWeight: sortBy === opt.value ? 600 : 400,
-              }}
+          {folders.length > 0 && (
+            <select
+              value={folderId ?? ''}
+              onChange={handleFolderChange}
+              className="folder-select"
             >
-              {opt.label}
-              {sortBy === opt.value && (
-                <span style={{ marginLeft: 3, fontSize: 10 }}>
-                  {order === 'asc' ? '↑' : '↓'}
-                </span>
-              )}
-            </button>
-          ))}
+              <option value="">All folders</option>
+              {folders.map(f => (
+                <option key={f.id} value={f.id}>
+                  {f.host_path} → {f.dest_subdir}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {/* Sort controls */}
+          <div className="sort-controls">
+            <span className="sort-label">Sort</span>
+            {SORT_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                className={`sort-btn${sortBy === opt.value ? ' sort-btn-active' : ''}`}
+                onClick={() => handleSortBy(opt.value)}
+              >
+                {opt.label}
+                {sortBy === opt.value && (
+                  <span className="sort-arrow">{order === 'asc' ? '↑' : '↓'}</span>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
