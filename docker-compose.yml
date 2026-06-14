@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: orchestrator
+      POSTGRES_PASSWORD: orchestrator
+      POSTGRES_DB: orchestrator
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orchestrator"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg://orchestrator:orchestrator@postgres:5432/orchestrator
+      DOCLING_BASE_URL: http://docling:5001
+      LIGHTRAG_BASE_URL: http://lightrag:9621
+      LIGHTRAG_USERNAME: sergio
+      LIGHTRAG_PASSWORD: changeme
+      LIGHTRAG_INPUT_DIR: /data/lightrag_inputs
+      SCAN_INTERVAL_MINUTES: "30"
+      DEFAULT_OWNER_USERNAME: sergio
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - lightrag_inputs:/data/lightrag_inputs
+
+volumes:
+  pgdata:
+  lightrag_inputs:
