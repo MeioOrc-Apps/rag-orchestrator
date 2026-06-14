@@ -195,3 +195,38 @@ class TestBatchFaultTolerance:
         assert result["processed"] == 1
         assert result["failed"] == 1
         assert (input_dir / "docs" / "good.md").exists()
+
+
+class TestRetryFailedFile:
+    def test_failed_file_is_retried_on_second_sync(
+        self, pipeline_db, owner, watched_folder, tmp_path
+    ):
+        """A file previously marked 'failed' must be retried, not rejected with a
+        unique-constraint violation that breaks the DB session."""
+        from app.pipeline.ingestor import run_pipeline
+        from app.models import ProcessedFile
+
+        folder, source_dir = watched_folder
+        input_dir = tmp_path / "input"
+        input_dir.mkdir()
+
+        f = source_dir / "doc.md"
+        f.write_text("content")
+
+        # First sync: force a failure via OSError on copy
+        with patch("app.pipeline.ingestor.shutil.copy2", side_effect=OSError("disk full")):
+            r1 = run_pipeline(pipeline_db, [folder], owner.id, input_dir)
+        assert r1["failed"] == 1
+
+        pf = pipeline_db.query(ProcessedFile).filter(
+            ProcessedFile.source_path == str(f)
+        ).first()
+        assert pf.status == "failed"
+
+        # Second sync: fix is in place — should process successfully, no crash
+        r2 = run_pipeline(pipeline_db, [folder], owner.id, input_dir)
+        assert r2["processed"] == 1
+        assert r2["failed"] == 0
+
+        pipeline_db.refresh(pf)
+        assert pf.status == "done"
