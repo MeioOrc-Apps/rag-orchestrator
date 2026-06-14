@@ -1,7 +1,10 @@
 import uuid
 from datetime import datetime
+from typing import Generic, TypeVar
 
 from pydantic import BaseModel
+
+T = TypeVar("T")
 
 
 class ProcessedFileResponse(BaseModel):
@@ -19,3 +22,10 @@ class ProcessedFileResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class PaginatedResponse(BaseModel, Generic[T]):
+    items: list[T]
+    total: int
+    limit: int
+    offset: int
