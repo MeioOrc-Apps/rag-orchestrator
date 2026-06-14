@@ -86,4 +86,38 @@ frontend/src/
 
 ---
 
-## Etapa 3 — Pipeline core (pendente)
+## Etapa 3 — Pipeline core ✅ (2026-06-14)
+
+**Branch:** `feat/etapa-3-pipeline-core` → merged na `main`
+
+**Comportamentos implementados:**
+- `compute_hash(file)`: SHA-256 estável por conteúdo; muda se conteúdo muda.
+- `scan(folder, recursive)`: lista arquivos; `recursive=False` não desce subpastas.
+- Skip: arquivo já em `processed_files` com mesmo hash e `status=done` → `skipped`.
+- `route(ext)`: `.md/.txt/.markdown` → `direct`; `.pdf/.docx/etc` → `docling`; desconhecido → `ValueError`.
+- Rota `direct`: copia para `INPUT_DIR/<dest_subdir>/...` preservando estrutura relativa.
+- Registro: `ProcessedFile` criado com `processing` → `done`; erro de I/O → `failed` com mensagem.
+- Falha em um arquivo não impede os demais do lote.
+- `POST /api/sync`: executa pipeline para todas as pastas ativas do owner; retorna `{processed, skipped, failed, scan_triggered: false}`.
+
+**Testes:** 75 backend (todos verdes). 6 frontend (verdes).
+
+**Decisões:**
+- `ingestor.run_pipeline` filtra pastas com `enabled=True` (não depende da rota: lógica separada).
+- Arquivos de rota `docling` ficam como `processing` nesta etapa (Etapa 5 fecha o loop).
+- `LIGHTRAG_INPUT_DIR` lido do `Settings()` na rota sync; sobrescrito via `monkeypatch.setenv` nos testes.
+
+**Estrutura adicionada:**
+```
+backend/app/pipeline/
+  scanner.py     (compute_hash, scan)
+  router.py      (route por extensão)
+  ingestor.py    (run_pipeline, _process_folder, _copy_direct)
+backend/app/routers/sync.py
+backend/tests/
+  test_scanner.py, test_router.py, test_pipeline.py, test_sync_api.py
+```
+
+---
+
+## Etapa 4 — Integração LightRAG (pendente)
