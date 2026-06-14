@@ -57,11 +57,10 @@ def _process_folder(
                     ProcessedFile.owner_id == owner_id,
                     ProcessedFile.source_path == str(file_path),
                     ProcessedFile.content_hash == content_hash,
-                    ProcessedFile.status == "done",
                 )
                 .first()
             )
-            if existing:
+            if existing and existing.status == "done":
                 skipped += 1
                 continue
 
@@ -69,17 +68,31 @@ def _process_folder(
             try:
                 route_name = get_route(ext)
             except ValueError as exc:
-                _save_record(
-                    session, owner_id, folder.id, file_path, content_hash,
-                    ext.lstrip(".") or "unknown", "unknown", "failed", str(exc),
-                )
+                if existing:
+                    existing.status = "failed"
+                    existing.error_message = str(exc)
+                    existing.processed_at = None
+                    session.commit()
+                else:
+                    _save_record(
+                        session, owner_id, folder.id, file_path, content_hash,
+                        ext.lstrip(".") or "unknown", "unknown", "failed", str(exc),
+                    )
                 failed += 1
                 continue
 
-            pf = _save_record(
-                session, owner_id, folder.id, file_path, content_hash,
-                ext.lstrip(".") or "unknown", route_name, "processing",
-            )
+            if existing:
+                pf = existing
+                pf.status = "processing"
+                pf.error_message = None
+                pf.dest_path = None
+                pf.processed_at = None
+                session.commit()
+            else:
+                pf = _save_record(
+                    session, owner_id, folder.id, file_path, content_hash,
+                    ext.lstrip(".") or "unknown", route_name, "processing",
+                )
 
             if route_name == "direct":
                 try:

@@ -1,3 +1,4 @@
+import os
 import httpx
 
 
@@ -11,21 +12,19 @@ class DoclingClient:
         self.timeout = timeout
 
     def convert(self, file_path: str) -> str:
-        payload = {
-            "sources": [{"kind": "file", "path": file_path}],
-            "options": {
-                "to_formats": ["md"],
-                "do_ocr": False,
-                "pdf_backend": "dlparse_v2",
-            },
-        }
+        if not os.path.isfile(file_path):
+            raise DoclingError(f"File not found: {file_path!r}")
         try:
-            resp = httpx.post(
-                f"{self.base_url}/v1/convert/source",
-                json=payload,
-                timeout=self.timeout,
-            )
+            with open(file_path, "rb") as fh:
+                file_name = os.path.basename(file_path)
+                resp = httpx.post(
+                    f"{self.base_url}/v1/convert/file",
+                    files={"files": (file_name, fh, "application/octet-stream")},
+                    timeout=self.timeout,
+                )
             resp.raise_for_status()
             return resp.json()["document"]["md_content"]
+        except DoclingError:
+            raise
         except Exception as exc:
             raise DoclingError(f"Docling conversion failed for {file_path!r}: {exc}") from exc

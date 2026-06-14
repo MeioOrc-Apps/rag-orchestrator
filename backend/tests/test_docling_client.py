@@ -1,42 +1,62 @@
+import os
 import pytest
+import tempfile
 from unittest.mock import patch, MagicMock
 
 
+def _make_mock_resp(md_content: str = "# Hello") -> MagicMock:
+    mock = MagicMock()
+    mock.status_code = 200
+    mock.json.return_value = {"document": {"md_content": md_content}}
+    mock.raise_for_status = MagicMock()
+    return mock
+
+
 class TestDoclingConvert:
-    def test_convert_sends_correct_payload(self):
+    def test_convert_sends_file_as_multipart(self):
         from app.docling_client import DoclingClient
 
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = {"document": {"md_content": "# Hello"}}
-        mock_resp.raise_for_status = MagicMock()
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
+            f.write(b"%PDF-1.4 test content")
+            tmp_path = f.name
 
-        with patch("httpx.post", return_value=mock_resp) as mock_post:
-            client = DoclingClient("http://docling:5001")
-            result = client.convert("/files/doc.pdf")
+        try:
+            with patch("httpx.post", return_value=_make_mock_resp()) as mock_post:
+                client = DoclingClient("http://docling:5001")
+                result = client.convert(tmp_path)
 
-        call_args = mock_post.call_args
-        assert "/v1/convert/source" in call_args.args[0]
-        payload = call_args.kwargs["json"]
-        assert payload["sources"] == [{"kind": "file", "path": "/files/doc.pdf"}]
-        assert payload["options"]["to_formats"] == ["md"]
-        assert payload["options"]["do_ocr"] is False
-        assert payload["options"]["pdf_backend"] == "dlparse_v2"
-        assert result == "# Hello"
+            call_args = mock_post.call_args
+            assert "/v1/convert/file" in call_args.args[0]
+            # must use files= (multipart), not json=
+            assert "files" in call_args.kwargs
+            assert call_args.kwargs.get("json") is None
+            assert result == "# Hello"
+        finally:
+            os.unlink(tmp_path)
 
     def test_convert_extracts_md_content_from_response(self):
         from app.docling_client import DoclingClient
 
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = {"document": {"md_content": "## My Document\n\nContent here."}}
-        mock_resp.raise_for_status = MagicMock()
+        content = "## My Document\n\nContent here."
+        with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as f:
+            f.write(b"PK fake docx bytes")
+            tmp_path = f.name
 
-        with patch("httpx.post", return_value=mock_resp):
-            client = DoclingClient("http://docling:5001")
-            result = client.convert("/files/report.docx")
+        try:
+            with patch("httpx.post", return_value=_make_mock_resp(content)):
+                client = DoclingClient("http://docling:5001")
+                result = client.convert(tmp_path)
 
-        assert result == "## My Document\n\nContent here."
+            assert result == content
+        finally:
+            os.unlink(tmp_path)
+
+    def test_convert_raises_docling_error_if_file_not_found(self):
+        from app.docling_client import DoclingClient, DoclingError
+
+        client = DoclingClient("http://docling:5001")
+        with pytest.raises(DoclingError, match="not found"):
+            client.convert("/nonexistent/path/doc.pdf")
 
     def test_convert_raises_docling_error_on_http_failure(self):
         from app.docling_client import DoclingClient, DoclingError
@@ -45,15 +65,29 @@ class TestDoclingConvert:
         mock_resp.status_code = 500
         mock_resp.raise_for_status.side_effect = Exception("500 Server Error")
 
-        with patch("httpx.post", return_value=mock_resp):
-            client = DoclingClient("http://docling:5001")
-            with pytest.raises(DoclingError):
-                client.convert("/files/doc.pdf")
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
+            f.write(b"%PDF content")
+            tmp_path = f.name
+
+        try:
+            with patch("httpx.post", return_value=mock_resp):
+                client = DoclingClient("http://docling:5001")
+                with pytest.raises(DoclingError):
+                    client.convert(tmp_path)
+        finally:
+            os.unlink(tmp_path)
 
     def test_convert_raises_docling_error_on_network_failure(self):
         from app.docling_client import DoclingClient, DoclingError
 
-        with patch("httpx.post", side_effect=Exception("connection refused")):
-            client = DoclingClient("http://docling:5001")
-            with pytest.raises(DoclingError):
-                client.convert("/files/doc.pdf")
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
+            f.write(b"%PDF content")
+            tmp_path = f.name
+
+        try:
+            with patch("httpx.post", side_effect=Exception("connection refused")):
+                client = DoclingClient("http://docling:5001")
+                with pytest.raises(DoclingError):
+                    client.convert(tmp_path)
+        finally:
+            os.unlink(tmp_path)
