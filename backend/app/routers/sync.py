@@ -28,7 +28,7 @@ def _default_owner(db: Session) -> User:
     return user
 
 
-def _execute_sync(db: Session) -> dict:
+def _execute_sync(db: Session, retry_failed: bool = True) -> dict:
     global _last_sync_result
     from app.config import Settings
     settings = Settings()
@@ -42,7 +42,7 @@ def _execute_sync(db: Session) -> dict:
 
     input_dir = Path(settings.lightrag_input_dir)
     docling = DoclingClient(settings.docling_base_url)
-    result = run_pipeline(db, folders, owner.id, input_dir, docling_client=docling)
+    result = run_pipeline(db, folders, owner.id, input_dir, docling_client=docling, retry_failed=retry_failed)
 
     scan_triggered = False
     if result["processed"] > 0:
@@ -113,7 +113,7 @@ def run_sync_job() -> None:
     factory = get_session_factory(engine)
     db = factory()
     try:
-        _execute_sync(db)
+        _execute_sync(db, retry_failed=False)
     except Exception as exc:
         logger.error("Scheduled sync failed: %s", exc)
     finally:
