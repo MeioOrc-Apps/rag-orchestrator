@@ -7,7 +7,9 @@ from typing import TYPE_CHECKING
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.markitdown_client import convert_to_markdown as markitdown_convert
 from app.models import ProcessedFile, WatchedFolder
+from app.pdf_direct import convert_to_markdown as pdf_direct_convert
 from app.pipeline.router import route as get_route
 from app.pipeline.scanner import compute_hash, scan
 
@@ -71,23 +73,25 @@ def _process_folder(
                 skipped += 1
                 continue
 
-            ext = file_path.suffix
-            try:
-                route_name = get_route(ext)
-            except ValueError as exc:
+            route_name = get_route(str(file_path))
+
+            if route_name == "unsupported":
+                error_msg = f"Unsupported file type: {file_path.suffix!r}"
                 if existing:
                     existing.status = "failed"
-                    existing.error_message = str(exc)
+                    existing.error_message = error_msg
                     existing.processed_at = None
                     session.commit()
                 else:
                     _save_record(
                         session, owner_id, folder.id, file_path, content_hash,
-                        ext.lstrip(".") or "unknown", "unknown", "failed", str(exc),
+                        file_path.suffix.lstrip(".") or "unknown", "unsupported",
+                        "failed", error_msg,
                     )
                 failed += 1
                 continue
 
+            ext = file_path.suffix
             if existing:
                 pf = existing
                 pf.status = "processing"
@@ -110,6 +114,42 @@ def _process_folder(
                     session.commit()
                     processed += 1
                 except OSError as exc:
+                    pf.status = "failed"
+                    pf.error_message = str(exc)
+                    session.commit()
+                    failed += 1
+
+            elif route_name == "pdf_direct":
+                try:
+                    md_content = pdf_direct_convert(str(file_path))
+                    dest_name = file_path.stem + ".md"
+                    dest = _save_markdown(
+                        md_content, dest_name, file_path, source_dir, input_dir, folder.dest_subdir
+                    )
+                    pf.dest_path = str(dest)
+                    pf.status = "done"
+                    pf.processed_at = datetime.now(timezone.utc)
+                    session.commit()
+                    processed += 1
+                except Exception as exc:
+                    pf.status = "failed"
+                    pf.error_message = str(exc)
+                    session.commit()
+                    failed += 1
+
+            elif route_name == "markitdown":
+                try:
+                    md_content = markitdown_convert(str(file_path))
+                    dest_name = file_path.stem + ".md"
+                    dest = _save_markdown(
+                        md_content, dest_name, file_path, source_dir, input_dir, folder.dest_subdir
+                    )
+                    pf.dest_path = str(dest)
+                    pf.status = "done"
+                    pf.processed_at = datetime.now(timezone.utc)
+                    session.commit()
+                    processed += 1
+                except Exception as exc:
                     pf.status = "failed"
                     pf.error_message = str(exc)
                     session.commit()
