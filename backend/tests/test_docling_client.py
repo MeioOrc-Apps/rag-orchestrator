@@ -27,10 +27,32 @@ class TestDoclingConvert:
 
             call_args = mock_post.call_args
             assert "/v1/convert/file" in call_args.args[0]
-            # must use files= (multipart), not json=
             assert "files" in call_args.kwargs
             assert call_args.kwargs.get("json") is None
+            # options sent as form data to request do_ocr=false
+            data = call_args.kwargs.get("data", {})
+            assert "options" in data
+            import json
+            opts = json.loads(data["options"])
+            assert opts["do_ocr"] is False
             assert result == "# Hello"
+        finally:
+            os.unlink(tmp_path)
+
+    def test_convert_uses_300s_timeout(self):
+        from app.docling_client import DoclingClient
+
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
+            f.write(b"%PDF-1.4 test content")
+            tmp_path = f.name
+
+        try:
+            with patch("httpx.post", return_value=_make_mock_resp()) as mock_post:
+                client = DoclingClient("http://docling:5001")
+                client.convert(tmp_path)
+
+            timeout = mock_post.call_args.kwargs.get("timeout")
+            assert timeout >= 300
         finally:
             os.unlink(tmp_path)
 

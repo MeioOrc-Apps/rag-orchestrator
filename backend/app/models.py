@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -56,3 +56,15 @@ class ProcessedFile(Base):
 
     owner: Mapped["User"] = relationship("User", foreign_keys=[owner_id])
     folder: Mapped["WatchedFolder"] = relationship("WatchedFolder", foreign_keys=[folder_id])
+
+
+class SyncState(Base):
+    """Singleton row (id=1) holding the last sync result — survives restarts."""
+    __tablename__ = "sync_state"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    last_run: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    processed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    skipped: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    failed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    scan_triggered: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

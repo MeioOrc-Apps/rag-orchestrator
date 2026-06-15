@@ -90,6 +90,26 @@ def test_sync_deduplicates_on_second_run(sync_client):
     assert body["processed"] == 0
 
 
+def test_status_survives_process_restart(sync_client):
+    """Sync result must be readable from DB after in-memory state is cleared."""
+    import app.routers.sync as sync_mod
+    client, _ = sync_client
+
+    client.post("/api/sync")
+
+    # simulate restart — wipe process-level cache
+    original = sync_mod._last_sync_result
+    sync_mod._last_sync_result = None
+    try:
+        resp = client.get("/api/sync/status")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["last_run"] is not None
+        assert "processed" in body
+    finally:
+        sync_mod._last_sync_result = original
+
+
 def test_sync_skips_disabled_folders(sync_client):
     client, tmp_path = sync_client
     source = tmp_path / "source"
