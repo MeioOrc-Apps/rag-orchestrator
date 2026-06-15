@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.dependencies import get_db
 from app.docling_client import DoclingClient
 from app.lightrag_client import LightRAGClient, LightRAGScanError
-from app.models import User, WatchedFolder
+from app.models import SyncState, User, WatchedFolder
 from app.pipeline.ingestor import run_pipeline
 
 logger = logging.getLogger(__name__)
@@ -57,14 +57,29 @@ def _execute_sync(db: Session) -> dict:
         except (LightRAGScanError, Exception) as exc:
             logger.warning("LightRAG scan failed: %s", exc)
 
+    now = datetime.now(timezone.utc)
     _last_sync_result = {
-        "last_run": datetime.now(timezone.utc).isoformat(),
+        "last_run": now.isoformat(),
         "processed": result["processed"],
         "skipped": result["skipped"],
         "failed": result["failed"],
         "scan_triggered": scan_triggered,
     }
+    _persist_sync_state(db, now, result, scan_triggered)
     return _last_sync_result
+
+
+def _persist_sync_state(db: Session, now: datetime, result: dict, scan_triggered: bool) -> None:
+    state = db.query(SyncState).filter(SyncState.id == 1).first()
+    if state is None:
+        state = SyncState(id=1)
+        db.add(state)
+    state.last_run = now
+    state.processed = result["processed"]
+    state.skipped = result["skipped"]
+    state.failed = result["failed"]
+    state.scan_triggered = scan_triggered
+    db.commit()
 
 
 @router.post("")
@@ -73,10 +88,19 @@ def trigger_sync(db: Session = Depends(get_db)):
 
 
 @router.get("/status")
-def sync_status():
-    if _last_sync_result is None:
+def sync_status(db: Session = Depends(get_db)):
+    if _last_sync_result is not None:
+        return _last_sync_result
+    state = db.query(SyncState).filter(SyncState.id == 1).first()
+    if state is None or state.last_run is None:
         return {"last_run": None}
-    return _last_sync_result
+    return {
+        "last_run": state.last_run.isoformat(),
+        "processed": state.processed,
+        "skipped": state.skipped,
+        "failed": state.failed,
+        "scan_triggered": state.scan_triggered,
+    }
 
 
 def run_sync_job() -> None:

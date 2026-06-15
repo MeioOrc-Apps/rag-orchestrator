@@ -1,3 +1,4 @@
+import json
 import os
 import httpx
 
@@ -6,8 +7,15 @@ class DoclingError(Exception):
     pass
 
 
+_CONVERT_OPTIONS = json.dumps({
+    "to_formats": ["md"],
+    "do_ocr": False,
+    "pdf_backend": "dlparse_v2",
+})
+
+
 class DoclingClient:
-    def __init__(self, base_url: str, timeout: float = 120.0):
+    def __init__(self, base_url: str, timeout: float = 300.0):
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
 
@@ -20,6 +28,7 @@ class DoclingClient:
                 resp = httpx.post(
                     f"{self.base_url}/v1/convert/file",
                     files={"files": (file_name, fh, "application/octet-stream")},
+                    data={"options": _CONVERT_OPTIONS},
                     timeout=self.timeout,
                 )
             resp.raise_for_status()
