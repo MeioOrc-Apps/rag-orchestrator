@@ -63,7 +63,7 @@ class TestDoclingConvert:
         finally:
             os.unlink(tmp_path)
 
-    def test_convert_uses_300s_timeout(self):
+    def test_convert_uses_600s_timeout(self):
         from app.docling_client import DoclingClient
 
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
@@ -75,7 +75,7 @@ class TestDoclingConvert:
                 client = DoclingClient("http://docling:5001")
                 client.convert(tmp_path)
 
-            assert mock_post.call_args.kwargs.get("timeout") >= 300
+            assert mock_post.call_args.kwargs.get("timeout") >= 600
         finally:
             os.unlink(tmp_path)
 
