@@ -244,6 +244,42 @@ class TestSchedulerSkipsFailed:
         assert r["failed"] == 0
 
 
+class TestConcurrentSync:
+    def test_concurrent_insert_does_not_raise_integrity_error(
+        self, pipeline_db, owner, watched_folder, tmp_path
+    ):
+        """Two syncs running at the same time may both find existing=None and try to
+        INSERT the same record. The second insert must not crash — it must recover
+        by returning the record the first sync already inserted."""
+        from app.pipeline.ingestor import _save_record
+        from app.models import ProcessedFile
+
+        folder, source_dir = watched_folder
+        f = source_dir / "doc.md"
+        f.write_text("content")
+
+        # First insert succeeds
+        pf1 = _save_record(
+            pipeline_db, owner.id, folder.id, f, "abc123",
+            "md", "direct", "processing",
+        )
+        assert pf1.id is not None
+
+        # Second insert with same (owner_id, source_path, content_hash) must not raise
+        pf2 = _save_record(
+            pipeline_db, owner.id, folder.id, f, "abc123",
+            "md", "direct", "processing",
+        )
+        # Must return the existing record, not crash
+        assert pf2.id == pf1.id
+        # Only one record in DB
+        count = pipeline_db.query(ProcessedFile).filter(
+            ProcessedFile.source_path == str(f),
+            ProcessedFile.content_hash == "abc123",
+        ).count()
+        assert count == 1
+
+
 class TestRetryFailedFile:
     def test_failed_file_is_retried_on_second_sync(
         self, pipeline_db, owner, watched_folder, tmp_path
