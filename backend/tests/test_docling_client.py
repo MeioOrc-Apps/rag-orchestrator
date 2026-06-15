@@ -14,7 +14,7 @@ def _make_mock_resp(md_content: str = "# Hello") -> MagicMock:
 
 
 class TestDoclingConvert:
-    def test_convert_sends_file_as_base64_in_file_sources(self):
+    def test_convert_sends_file_as_base64_in_sources_with_kind_file(self):
         from app.docling_client import DoclingClient
 
         file_bytes = b"%PDF-1.4 test content"
@@ -31,18 +31,19 @@ class TestDoclingConvert:
             assert "/v1/convert/source" in call_args.args[0]
             payload = call_args.kwargs["json"]
 
-            # must use file_sources with base64_string, NOT kind:file with path
-            assert "file_sources" in payload
-            assert len(payload["file_sources"]) == 1
-            src = payload["file_sources"][0]
-            assert src["filename"] == "test.pdf" or src["filename"].endswith(".pdf")
+            # API uses sources[] with kind discriminator, NOT file_sources[]
+            assert "sources" in payload
+            assert len(payload["sources"]) == 1
+            src = payload["sources"][0]
+            assert src["kind"] == "file"
+            assert src["filename"].endswith(".pdf")
             assert base64.b64decode(src["base64_string"]) == file_bytes
 
             assert result == "# Hello"
         finally:
             os.unlink(tmp_path)
 
-    def test_convert_sends_options_with_do_ocr_false_and_dlparse_v2(self):
+    def test_convert_sends_options_with_do_ocr_false_and_pypdfium2(self):
         from app.docling_client import DoclingClient
 
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
@@ -57,7 +58,7 @@ class TestDoclingConvert:
             payload = mock_post.call_args.kwargs["json"]
             opts = payload["options"]
             assert opts["do_ocr"] is False
-            assert opts["pdf_backend"] == "dlparse_v2"
+            assert opts["pdf_backend"] == "pypdfium2"
             assert "md" in opts["to_formats"]
         finally:
             os.unlink(tmp_path)

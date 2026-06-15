@@ -20,13 +20,18 @@ class DoclingClient:
             with open(file_path, "rb") as f:
                 b64 = base64.b64encode(f.read()).decode()
             payload = {
-                "file_sources": [
-                    {"base64_string": b64, "filename": os.path.basename(file_path)}
+                "sources": [
+                    {
+                        "kind": "file",
+                        "base64_string": b64,
+                        "filename": os.path.basename(file_path),
+                    }
                 ],
                 "options": {
                     "to_formats": ["md"],
                     "do_ocr": False,
-                    "pdf_backend": "dlparse_v2",
+                    # pypdfium2: fast text extraction, no ML layout models
+                    "pdf_backend": "pypdfium2",
                 },
             }
             resp = httpx.post(
