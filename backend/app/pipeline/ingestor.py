@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import ProcessedFile, WatchedFolder
@@ -139,6 +140,7 @@ def _process_folder(
                     failed += 1
 
         except Exception:
+            session.rollback()
             failed += 1
 
     return {"processed": processed, "skipped": skipped, "failed": failed}
@@ -166,7 +168,20 @@ def _save_record(
         error_message=error_message,
     )
     session.add(pf)
-    session.commit()
+    try:
+        session.commit()
+    except IntegrityError:
+        # Race condition: concurrent sync already inserted this record
+        session.rollback()
+        return (
+            session.query(ProcessedFile)
+            .filter(
+                ProcessedFile.owner_id == owner_id,
+                ProcessedFile.source_path == str(file_path),
+                ProcessedFile.content_hash == content_hash,
+            )
+            .one()
+        )
     session.refresh(pf)
     return pf
 
