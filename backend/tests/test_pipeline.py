@@ -197,6 +197,53 @@ class TestBatchFaultTolerance:
         assert (input_dir / "docs" / "good.md").exists()
 
 
+class TestSchedulerSkipsFailed:
+    def test_scheduler_skips_previously_failed_file(
+        self, pipeline_db, owner, watched_folder, tmp_path
+    ):
+        """Scheduled sync (retry_failed=False) must skip files already marked failed
+        so Docling models are not reloaded every 30 minutes for files that won't succeed."""
+        from app.pipeline.ingestor import run_pipeline
+        from app.models import ProcessedFile
+
+        folder, source_dir = watched_folder
+        input_dir = tmp_path / "input"
+        input_dir.mkdir()
+
+        f = source_dir / "doc.md"
+        f.write_text("content")
+
+        with patch("app.pipeline.ingestor.shutil.copy2", side_effect=OSError("disk full")):
+            run_pipeline(pipeline_db, [folder], owner.id, input_dir)
+
+        # Scheduler run: retry_failed=False → skip, return skipped count
+        r = run_pipeline(pipeline_db, [folder], owner.id, input_dir, retry_failed=False)
+        assert r["processed"] == 0
+        assert r["failed"] == 0
+        assert r["skipped"] == 1
+
+    def test_manual_sync_retries_failed_file(
+        self, pipeline_db, owner, watched_folder, tmp_path
+    ):
+        """Manual sync (retry_failed=True, the default) still retries failed files."""
+        from app.pipeline.ingestor import run_pipeline
+
+        folder, source_dir = watched_folder
+        input_dir = tmp_path / "input"
+        input_dir.mkdir()
+
+        f = source_dir / "doc.md"
+        f.write_text("content")
+
+        with patch("app.pipeline.ingestor.shutil.copy2", side_effect=OSError("disk full")):
+            run_pipeline(pipeline_db, [folder], owner.id, input_dir)
+
+        # Manual sync: retry_failed=True (default) → retries and succeeds
+        r = run_pipeline(pipeline_db, [folder], owner.id, input_dir, retry_failed=True)
+        assert r["processed"] == 1
+        assert r["failed"] == 0
+
+
 class TestRetryFailedFile:
     def test_failed_file_is_retried_on_second_sync(
         self, pipeline_db, owner, watched_folder, tmp_path

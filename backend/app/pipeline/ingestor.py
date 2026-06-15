@@ -20,13 +20,14 @@ def run_pipeline(
     owner_id: uuid.UUID,
     input_dir: Path,
     docling_client: "DoclingClient | None" = None,
+    retry_failed: bool = True,
 ) -> dict:
     total_processed = total_skipped = total_failed = 0
 
     for folder in folders:
         if not folder.enabled:
             continue
-        r = _process_folder(session, folder, owner_id, input_dir, docling_client)
+        r = _process_folder(session, folder, owner_id, input_dir, docling_client, retry_failed)
         total_processed += r["processed"]
         total_skipped += r["skipped"]
         total_failed += r["failed"]
@@ -40,6 +41,7 @@ def _process_folder(
     owner_id: uuid.UUID,
     input_dir: Path,
     docling_client: "DoclingClient | None",
+    retry_failed: bool = True,
 ) -> dict:
     from app.docling_client import DoclingError
 
@@ -61,6 +63,10 @@ def _process_folder(
                 .first()
             )
             if existing and existing.status == "done":
+                skipped += 1
+                continue
+
+            if existing and existing.status == "failed" and not retry_failed:
                 skipped += 1
                 continue
 
