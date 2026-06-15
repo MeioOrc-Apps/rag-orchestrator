@@ -1,3 +1,6 @@
+import base64
+import os
+
 import httpx
 
 
@@ -11,15 +14,21 @@ class DoclingClient:
         self.timeout = timeout
 
     def convert(self, file_path: str) -> str:
-        payload = {
-            "sources": [{"kind": "file", "path": file_path}],
-            "options": {
-                "to_formats": ["md"],
-                "do_ocr": False,
-                "pdf_backend": "dlparse_v2",
-            },
-        }
+        if not os.path.isfile(file_path):
+            raise DoclingError(f"File not found: {file_path!r}")
         try:
+            with open(file_path, "rb") as f:
+                b64 = base64.b64encode(f.read()).decode()
+            payload = {
+                "file_sources": [
+                    {"base64_string": b64, "filename": os.path.basename(file_path)}
+                ],
+                "options": {
+                    "to_formats": ["md"],
+                    "do_ocr": False,
+                    "pdf_backend": "dlparse_v2",
+                },
+            }
             resp = httpx.post(
                 f"{self.base_url}/v1/convert/source",
                 json=payload,
@@ -27,5 +36,7 @@ class DoclingClient:
             )
             resp.raise_for_status()
             return resp.json()["document"]["md_content"]
+        except DoclingError:
+            raise
         except Exception as exc:
             raise DoclingError(f"Docling conversion failed for {file_path!r}: {exc}") from exc
