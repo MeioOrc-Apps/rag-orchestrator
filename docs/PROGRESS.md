@@ -252,3 +252,49 @@ docker-compose.prod.yml
 .github/workflows/ci.yml
 Apps/RagOrchestrator/docker-compose.yml  (casaos-appstore)
 ```
+
+---
+
+## Etapa 9 — Roteamento multiformato ✅ (2026-06-15)
+
+**Branch:** `feat/etapa-9-multiformat-routing`
+
+**Comportamentos implementados:**
+- `pdf_direct`: `is_digital_pdf(path, min_text_page_ratio=0.5)` detecta PDFs digitais por fração de páginas com texto (`get_text().strip() > 10 chars`). `convert_to_markdown` usa `pymupdf4llm.to_markdown`.
+- `markitdown_client`: singleton `MarkItDown()`; `convert_to_markdown` retorna `.markdown` (não `.text_content`, deprecado).
+- Router recebe caminho completo (não extensão); PDF decide por conteúdo: digital→`pdf_direct`, escaneado→`docling`. Desconhecido→`unsupported` (sem raise).
+- Pipeline despacha as 4 rotas; `unsupported` registra `failed` e segue o lote (sem `ValueError`).
+- Dedup por hash válido em todas as 4 rotas.
+
+**Novos tipos aceitos pelo sistema:**
+- `direct`: rst, tex, csv, py, js, ts, jsx, tsx, json, yaml, yml, toml, ini, cfg, sql, sh, bash, xml, css, go, rs, java, c, cpp, h, rb, php, lua (além de md/txt já existentes)
+- `markitdown`: docx, doc, pptx, ppt, xlsx, html, htm (antes iam para Docling)
+- `pdf_direct`: pdf digital (antes ia para Docling)
+- `docling`: somente pdf escaneado e imagens (png, jpg, jpeg, tiff, bmp, webp)
+
+**Testes:** 71 novos testes (41 unit + 30 integração) adicionados; suíte completa requer DB.
+
+**Decisões:**
+- `pymupdf4llm>=0.0.17` e `markitdown[all]>=0.1.0` adicionados ao `pyproject.toml`.
+- Teste de PDF 0-páginas usa mock (pymupdf recusa salvar PDF vazio no disco).
+- `test_docling_pipeline.py`: fixture `autouse` mock `is_digital_pdf=False` para garantir que PDFs falsos (fixtures) vão para Docling. Teste de DOCX removido (DOCX→markitdown agora).
+- Rotas `pdf_direct` e `markitdown` capturam `Exception` genérica (→`failed`); consistente com "falha não aborta lote".
+
+**Estrutura adicionada:**
+```
+backend/app/pdf_direct.py
+backend/app/markitdown_client.py
+backend/tests/test_pdf_direct.py
+backend/tests/test_markitdown_client.py
+backend/tests/test_multiformat_pipeline.py
+```
+
+**Modificado:**
+```
+backend/pyproject.toml              (novas deps)
+backend/app/pipeline/router.py      (4 rotas, assinatura path)
+backend/app/pipeline/ingestor.py    (dispatch 4 rotas + unsupported)
+backend/tests/test_router.py        (novos casos, nova API)
+backend/tests/test_docling_pipeline.py  (autouse mock, removido docx test)
+docs/SPEC.md                        (seção roteamento multiformato)
+```

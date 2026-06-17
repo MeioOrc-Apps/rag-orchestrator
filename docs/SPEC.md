@@ -52,9 +52,12 @@ para cada watched_folder habilitada:
     calcula content_hash
     existe processed_file com mesmo (owner_id, source_path, content_hash) e status=done? 
       sim -> SKIP (registra status=skipped se ainda não houver registro done)
-      não -> roteia por extensão:
-               .md / .txt           -> route=direct  -> copia para INPUT_DIR/<dest_subdir>/...
-               .pdf .docx .pptx ...  -> route=docling -> POST Docling -> salva .md em INPUT_DIR/<dest_subdir>/...
+      não -> roteia por caminho/extensão:
+               texto/código          -> route=direct     -> copia para INPUT_DIR/<dest_subdir>/...
+               .pdf (digital)        -> route=pdf_direct -> pymupdf4llm -> salva .md
+               .docx/.html/Office    -> route=markitdown -> MarkItDown  -> salva .md
+               .pdf (escaneado)/img  -> route=docling    -> POST Docling -> salva .md
+               desconhecido          -> route=unsupported -> failed, sem conversão
              registra processed_file (status: processing -> done | failed)
 após todos os novos:
   LightRAG: login -> POST /documents/scan
@@ -91,7 +94,7 @@ após todos os novos:
 | dest_path | text | nullable |
 | content_hash | text | not null |
 | file_type | text | not null |
-| route | text | not null ('direct' \| 'docling') |
+| route | text | not null ('direct' \| 'pdf_direct' \| 'markitdown' \| 'docling' \| 'unsupported') |
 | status | text | not null ('pending'\|'processing'\|'done'\|'failed'\|'skipped') |
 | error_message | text | nullable |
 | processed_at | timestamptz | nullable |
@@ -128,11 +131,37 @@ SCAN_INTERVAL_MINUTES=30
 DEFAULT_OWNER_USERNAME=sergio
 ```
 
-## Regras de roteamento por extensão
+## Regras de roteamento multiformato
 
-- `direct` (copiar sem conversão): `.md`, `.txt`, `.markdown`
-- `docling` (converter): `.pdf`, `.docx`, `.pptx`, `.xlsx`, `.html`, imagens
-- desconhecido: registrar `failed` com mensagem clara, não travar o pipeline
+O roteamento recebe o **caminho completo** do arquivo (não apenas a extensão), pois PDFs requerem inspeção de conteúdo.
+
+| Rota | Extensões | Ferramenta | Onde roda |
+|---|---|---|---|
+| `direct` | md, markdown, txt, rst, tex, csv, py, js, ts, jsx, tsx, json, yaml, yml, toml, ini, cfg, sql, sh, bash, xml, css, go, rs, java, c, cpp, h, rb, php, lua | shutil.copy2 | in-process |
+| `pdf_direct` | pdf **com** camada de texto (digital) | pymupdf4llm | in-process |
+| `markitdown` | docx, doc, pptx, ppt, xlsx, html, htm | MarkItDown | in-process |
+| `docling` | pdf **sem** texto (escaneado), png, jpg, jpeg, tiff, bmp, webp | Docling (OCR) | HTTP |
+
+Extensão desconhecida → `unsupported`: registra `status=failed`, não aborta lote.
+
+### Detecção digital vs escaneado (PDF)
+
+Fração de páginas que contêm texto (`page.get_text().strip()` com mais de 10 caracteres):
+
+```python
+pages_with_text / num_pages >= min_text_page_ratio  # default 0.5
+```
+
+- PDF digital tem camada de texto (`get_text` retorna conteúdo); custo de milissegundos.
+- PDF escaneado é imagem pura (`get_text` ≈ vazio).
+- Ratio 0.5 lida com PDFs mistos (livros com páginas de arte).
+- PDF corrompido ou ilegível → `False` (vai para Docling).
+
+### Valores possíveis de `route` em `processed_files`
+
+`direct` | `pdf_direct` | `markitdown` | `docling` | `unsupported`
+
+(`unsupported` → `status=failed`; os demais → `status=done` em sucesso)
 
 ## Decisões de design
 

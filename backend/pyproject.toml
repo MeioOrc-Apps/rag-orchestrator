@@ -16,6 +16,8 @@ dependencies = [
     "httpx>=0.28",
     "apscheduler>=3.11",
     "aiofiles>=23.0",
+    "pymupdf4llm>=0.0.17",
+    "markitdown[all]>=0.1.0",
 ]
 
 [project.optional-dependencies]
