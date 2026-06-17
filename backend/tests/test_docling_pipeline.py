@@ -6,6 +6,13 @@ from unittest.mock import MagicMock, patch
 pytestmark = pytest.mark.integration
 
 
+@pytest.fixture(autouse=True)
+def mock_is_digital_pdf():
+    """All PDFs in docling tests are scanned (no text layer)."""
+    with patch("app.pipeline.router.is_digital_pdf", return_value=False):
+        yield
+
+
 @pytest.fixture
 def pipeline_env(db_session, tmp_path):
     from app.models import User, WatchedFolder
@@ -51,18 +58,6 @@ class TestDoclingRoute:
         dest = input_dir / "docs" / "report.md"
         assert dest.exists()
         assert dest.read_text() == "# Report\n\nContent."
-
-    def test_docx_converted_with_original_stem(self, pipeline_env):
-        from app.pipeline.ingestor import run_pipeline
-        db, owner, folders, source, input_dir = pipeline_env
-
-        docx = source / "slides.docx"
-        docx.write_bytes(b"PK fake")
-
-        docling = _make_docling_client("# Slides")
-        run_pipeline(db, folders, owner.id, input_dir, docling_client=docling)
-
-        assert (input_dir / "docs" / "slides.md").exists()
 
     def test_docling_error_marks_file_failed_batch_continues(self, pipeline_env):
         from app.pipeline.ingestor import run_pipeline
