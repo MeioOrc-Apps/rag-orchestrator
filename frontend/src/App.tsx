@@ -60,7 +60,7 @@ export default function App() {
           </div>
           <div className="sidebar-logo-name">
             RAG Orchestrator
-            <span className="sidebar-logo-sub">v0.1.0</span>
+            <span className="sidebar-logo-sub">v{__APP_VERSION__}</span>
           </div>
         </div>
 
