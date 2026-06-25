@@ -1,7 +1,13 @@
+import tomllib
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
+
+def _read_version() -> str:
+    toml = Path(__file__).parent.parent / "pyproject.toml"
+    with toml.open("rb") as f:
+        return tomllib.load(f)["project"]["version"]
 from fastapi.responses import FileResponse, Response
 
 from app.routers import files as files_router
@@ -27,7 +33,7 @@ async def lifespan(app: FastAPI):
     scheduler.shutdown(wait=False)
 
 
-app = FastAPI(title="RAG Orchestrator", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="RAG Orchestrator", version=_read_version(), lifespan=lifespan)
 app.include_router(folders_router.router)
 app.include_router(sync_router.router)
 app.include_router(files_router.router)
