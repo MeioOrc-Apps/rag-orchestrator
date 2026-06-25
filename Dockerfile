@@ -10,16 +10,8 @@ RUN npm run build
 FROM python:3.12-slim
 WORKDIR /app
 
-RUN pip install --no-cache-dir \
-    "fastapi>=0.115" \
-    "uvicorn[standard]>=0.32" \
-    "sqlalchemy>=2.0" \
-    "alembic>=1.14" \
-    "psycopg[binary]>=3.2" \
-    "pydantic-settings>=2.7" \
-    "httpx>=0.28" \
-    "apscheduler>=3.11" \
-    "aiofiles>=23.0"
+COPY backend/pyproject.toml ./
+RUN python3 -c "import tomllib,subprocess,sys; f=open('pyproject.toml','rb'); d=tomllib.load(f); f.close(); subprocess.run([sys.executable,'-m','pip','install','--no-cache-dir']+d['project']['dependencies'],check=True)"
 
 COPY backend/ ./
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
