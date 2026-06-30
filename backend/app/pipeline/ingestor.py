@@ -1,3 +1,4 @@
+import logging
 import shutil
 import uuid
 from datetime import datetime, timezone
@@ -6,6 +7,8 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 from app.markitdown_client import convert_to_markdown as markitdown_convert
 from app.models import ProcessedFile, WatchedFolder
@@ -27,6 +30,7 @@ def run_pipeline(
 ) -> dict:
     total_processed = total_skipped = total_failed = 0
 
+    logger.info("Sync started — %d folder(s)", len(folders))
     for folder in folders:
         if not folder.enabled:
             continue
@@ -35,6 +39,10 @@ def run_pipeline(
         total_skipped += r["skipped"]
         total_failed += r["failed"]
 
+    logger.info(
+        "Sync done — processed=%d skipped=%d failed=%d",
+        total_processed, total_skipped, total_failed,
+    )
     return {"processed": total_processed, "skipped": total_skipped, "failed": total_failed}
 
 
@@ -50,7 +58,8 @@ def _process_folder(
 
     processed = skipped = failed = 0
     source_dir = Path(folder.host_path)
-    files = scan(source_dir, recursive=folder.recursive)
+    files = list(scan(source_dir, recursive=folder.recursive))
+    logger.info("Folder %s — %d file(s) found", folder.host_path, len(files))
 
     for file_path in files:
         try:
@@ -66,10 +75,12 @@ def _process_folder(
                 .first()
             )
             if existing and existing.status == "done":
+                logger.debug("SKIP %s (already done)", file_path.name)
                 skipped += 1
                 continue
 
             if existing and existing.status == "failed" and not retry_failed:
+                logger.debug("SKIP %s (failed, retry_failed=False)", file_path.name)
                 skipped += 1
                 continue
 
@@ -77,6 +88,7 @@ def _process_folder(
 
             if route_name == "unsupported":
                 error_msg = f"Unsupported file type: {file_path.suffix!r}"
+                logger.warning("UNSUPPORTED %s — %s", file_path.name, error_msg)
                 if existing:
                     existing.status = "failed"
                     existing.error_message = error_msg
@@ -91,6 +103,7 @@ def _process_folder(
                 failed += 1
                 continue
 
+            logger.info("PROCESSING %s via %s", file_path.name, route_name)
             ext = file_path.suffix
             if existing:
                 pf = existing
@@ -112,11 +125,13 @@ def _process_folder(
                     pf.status = "done"
                     pf.processed_at = datetime.now(timezone.utc)
                     session.commit()
+                    logger.info("DONE %s → %s", file_path.name, dest)
                     processed += 1
                 except OSError as exc:
                     pf.status = "failed"
                     pf.error_message = str(exc)
                     session.commit()
+                    logger.error("FAILED %s — %s", file_path.name, exc)
                     failed += 1
 
             elif route_name == "pdf_direct":
@@ -130,11 +145,13 @@ def _process_folder(
                     pf.status = "done"
                     pf.processed_at = datetime.now(timezone.utc)
                     session.commit()
+                    logger.info("DONE %s → %s", file_path.name, dest)
                     processed += 1
                 except Exception as exc:
                     pf.status = "failed"
                     pf.error_message = str(exc)
                     session.commit()
+                    logger.error("FAILED %s — %s", file_path.name, exc)
                     failed += 1
 
             elif route_name == "markitdown":
@@ -148,11 +165,13 @@ def _process_folder(
                     pf.status = "done"
                     pf.processed_at = datetime.now(timezone.utc)
                     session.commit()
+                    logger.info("DONE %s → %s", file_path.name, dest)
                     processed += 1
                 except Exception as exc:
                     pf.status = "failed"
                     pf.error_message = str(exc)
                     session.commit()
+                    logger.error("FAILED %s — %s", file_path.name, exc)
                     failed += 1
 
             elif route_name == "docling":
@@ -160,6 +179,7 @@ def _process_folder(
                     pf.status = "failed"
                     pf.error_message = "Docling client not configured"
                     session.commit()
+                    logger.error("FAILED %s — Docling client not configured", file_path.name)
                     failed += 1
                     continue
                 try:
@@ -172,14 +192,17 @@ def _process_folder(
                     pf.status = "done"
                     pf.processed_at = datetime.now(timezone.utc)
                     session.commit()
+                    logger.info("DONE %s → %s", file_path.name, dest)
                     processed += 1
                 except DoclingError as exc:
                     pf.status = "failed"
                     pf.error_message = str(exc)
                     session.commit()
+                    logger.error("FAILED %s — %s", file_path.name, exc)
                     failed += 1
 
         except Exception:
+            logger.exception("Unexpected error processing %s", file_path)
             session.rollback()
             failed += 1
 

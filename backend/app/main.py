@@ -1,8 +1,14 @@
+import logging
 import tomllib
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s [%(name)s] %(message)s",
+)
 
 def _read_version() -> str:
     toml = Path(__file__).parent.parent / "pyproject.toml"
