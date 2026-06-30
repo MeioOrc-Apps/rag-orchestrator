@@ -56,3 +56,19 @@ class TestNewFileInserted:
         f = db_session.query(File).first()
         assert f.file_hash == compute_hash(filepath)
         assert f.file_size_bytes == filepath.stat().st_size
+
+
+class TestUnchangedFileSkipped:
+    def test_unchanged_file_is_skipped_on_second_scan(self, db_session, folder_and_source):
+        from app.jobs.scan_job import run_scan
+        from app.models import File
+
+        folder, source = folder_and_source
+        (source / "note.md").write_text("hello")
+
+        run_scan(db_session, [folder])
+        result = run_scan(db_session, [folder])
+
+        assert result["skipped"] == 1
+        assert result["inserted"] == 0
+        assert db_session.query(File).count() == 1
