@@ -6,10 +6,8 @@ import pytest
 _TEST_DEFAULTS = {
     "DATABASE_URL": "postgresql+psycopg://orchestrator:orchestrator@localhost:5433/orchestrator",
     "DOCLING_BASE_URL": "http://localhost:5001",
-    "LIGHTRAG_BASE_URL": "http://localhost:9621",
-    "LIGHTRAG_USERNAME": "sergio",
-    "LIGHTRAG_PASSWORD": "changeme",
-    "LIGHTRAG_INPUT_DIR": "/tmp/lightrag_inputs",
+    "OPENSEARCH_HOST": "http://localhost:9200",
+    "INPUT_DIR": "/tmp/rag_inputs",
     "DEFAULT_OWNER_USERNAME": "sergio",
 }
 for _k, _v in _TEST_DEFAULTS.items():

@@ -67,10 +67,9 @@ class TestSyncStatus:
         assert resp.json()["last_run"] is None
 
     def test_status_returns_result_after_post_sync(self, api_client, tmp_path, monkeypatch):
-        monkeypatch.setenv("LIGHTRAG_INPUT_DIR", str(tmp_path / "input"))
+        monkeypatch.setenv("INPUT_DIR", str(tmp_path / "input"))
         (tmp_path / "input").mkdir()
-        with patch("app.routers.sync.LightRAGClient"):
-            api_client.post("/api/sync")
+        api_client.post("/api/sync")
 
         resp = api_client.get("/api/sync/status")
         body = resp.json()
@@ -80,7 +79,7 @@ class TestSyncStatus:
         assert "failed" in body
 
     def test_status_reflects_latest_sync(self, api_client, tmp_path, monkeypatch):
-        monkeypatch.setenv("LIGHTRAG_INPUT_DIR", str(tmp_path / "input"))
+        monkeypatch.setenv("INPUT_DIR", str(tmp_path / "input"))
         (tmp_path / "input").mkdir()
         source = tmp_path / "src"
         source.mkdir()
@@ -91,8 +90,7 @@ class TestSyncStatus:
             "dest_subdir": "docs",
         })
 
-        with patch("app.routers.sync.LightRAGClient"):
-            api_client.post("/api/sync")
+        api_client.post("/api/sync")
 
         resp = api_client.get("/api/sync/status")
         assert resp.json()["processed"] == 1

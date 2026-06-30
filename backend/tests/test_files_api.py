@@ -1,5 +1,4 @@
 import pytest
-from unittest.mock import patch
 
 pytestmark = pytest.mark.integration
 
@@ -7,13 +6,12 @@ pytestmark = pytest.mark.integration
 # ── helpers ────────────────────────────────────────────────────────────────────
 
 def _sync(api_client):
-    with patch("app.routers.sync.LightRAGClient"):
-        return api_client.post("/api/sync")
+    return api_client.post("/api/sync")
 
 
 def _setup_source(tmp_path, monkeypatch, files: dict[str, str]) -> None:
     """Write files into a tmp source dir and register it as a watched folder."""
-    monkeypatch.setenv("LIGHTRAG_INPUT_DIR", str(tmp_path / "input"))
+    monkeypatch.setenv("INPUT_DIR", str(tmp_path / "input"))
     (tmp_path / "input").mkdir(exist_ok=True)
     src = tmp_path / "src"
     src.mkdir(exist_ok=True)
@@ -148,7 +146,7 @@ def test_list_files_filter_by_status(api_client, tmp_path, monkeypatch):
 # ── folder filter ──────────────────────────────────────────────────────────────
 
 def test_list_files_filter_by_folder_id(api_client, tmp_path, monkeypatch):
-    monkeypatch.setenv("LIGHTRAG_INPUT_DIR", str(tmp_path / "input"))
+    monkeypatch.setenv("INPUT_DIR", str(tmp_path / "input"))
     (tmp_path / "input").mkdir()
 
     src_a = tmp_path / "src_a"

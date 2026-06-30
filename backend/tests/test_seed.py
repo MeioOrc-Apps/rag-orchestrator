@@ -56,10 +56,8 @@ def test_seed_uses_default_owner_username_from_config(db_session, monkeypatch):
 
     monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://x:x@localhost/x")
     monkeypatch.setenv("DOCLING_BASE_URL", "http://x")
-    monkeypatch.setenv("LIGHTRAG_BASE_URL", "http://x")
-    monkeypatch.setenv("LIGHTRAG_USERNAME", "x")
-    monkeypatch.setenv("LIGHTRAG_PASSWORD", "x")
-    monkeypatch.setenv("LIGHTRAG_INPUT_DIR", "/x")
+    monkeypatch.setenv("OPENSEARCH_HOST", "http://x:9200")
+    monkeypatch.setenv("INPUT_DIR", "/x")
     monkeypatch.setenv("DEFAULT_OWNER_USERNAME", "admin")
 
     import importlib
