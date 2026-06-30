@@ -8,8 +8,8 @@ pytestmark = pytest.mark.integration
 
 @pytest.fixture
 def sync_client(seeded_db, tmp_path, monkeypatch):
-    """api_client with LIGHTRAG_INPUT_DIR pointing to tmp_path."""
-    monkeypatch.setenv("LIGHTRAG_INPUT_DIR", str(tmp_path / "input"))
+    """api_client with INPUT_DIR pointing to tmp_path."""
+    monkeypatch.setenv("INPUT_DIR", str(tmp_path / "input"))
     (tmp_path / "input").mkdir()
 
     from fastapi.testclient import TestClient

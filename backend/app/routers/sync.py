@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 
 from app.dependencies import get_db
 from app.docling_client import DoclingClient
-from app.lightrag_client import LightRAGClient, LightRAGScanError
 from app.models import SyncState, User, WatchedFolder
 from app.pipeline.ingestor import run_pipeline
 
@@ -40,23 +39,11 @@ def _execute_sync(db: Session, retry_failed: bool = True) -> dict:
         .all()
     )
 
-    input_dir = Path(settings.lightrag_input_dir)
+    input_dir = Path(settings.input_dir)
     docling = DoclingClient(settings.docling_base_url)
     result = run_pipeline(db, folders, owner.id, input_dir, docling_client=docling, retry_failed=retry_failed)
 
     scan_triggered = False
-    if result["processed"] > 0:
-        try:
-            lightrag = LightRAGClient(
-                settings.lightrag_base_url,
-                settings.lightrag_username,
-                settings.lightrag_password,
-            )
-            lightrag.trigger_scan()
-            scan_triggered = True
-        except (LightRAGScanError, Exception) as exc:
-            logger.warning("LightRAG scan failed: %s", exc)
-
     now = datetime.now(timezone.utc)
     _last_sync_result = {
         "last_run": now.isoformat(),

@@ -298,3 +298,39 @@ backend/tests/test_router.py        (novos casos, nova API)
 backend/tests/test_docling_pipeline.py  (autouse mock, removido docx test)
 docs/SPEC.md                        (seção roteamento multiformato)
 ```
+
+---
+
+## Etapa 10 — Schema & Foundation (OpenSearch Module) ✅ (2026-06-30)
+
+**Branch:** `feat/etapa-10-schema-foundation`
+
+**Comportamentos implementados:**
+- Config: remove vars `LIGHTRAG_BASE_URL/USERNAME/PASSWORD/INPUT_DIR`; adiciona `OPENSEARCH_HOST` (required), renomeia `LIGHTRAG_INPUT_DIR` → `INPUT_DIR`; adiciona `OPENSEARCH_INDEX_PREFIX` (default 'rag'), `PARSE/TRANSLATE/INDEX_INTERVAL_MINUTES`, `MAX_TRANSLATION_RETRIES`, `CHUNK_SIZE`, `CHUNK_OVERLAP`, `ENRICHMENT_MODEL`, `OLLAMA_HOST`, `MCP_PORT`.
+- LightRAG removido: `lightrag_client.py` deletado; `sync.py` remove trigger_scan (scan_triggered sempre False até etapa 12).
+- Novos models: `File`, `Chunk`, `TranslationSettings`, `SearchQueryLog` em `app/models.py` (ao lado dos legados `ProcessedFile`, `SyncState` que ficam até etapa 12).
+- Migration 003: cria `files`, `chunks`, `translation_settings`, `search_query_log`; seed de `TranslationSettings` (idempotente); downgrade remove só as novas tabelas.
+
+**Testes:** 166 passed (todos verdes).
+
+**Decisões:**
+- Migration 003 é aditiva — não dropa `processed_files`/`sync_state`. Drop acontece em etapa 12 quando o pipeline for substituído pelo scan_job/parse_job.
+- `ProcessedFile`, `SyncState` permanecem em models.py temporariamente (legacy até etapa 12).
+- `scan_triggered` sempre False no sync.py até etapa 12 implementar o novo scan_job.
+- OpenSearch IP do ambiente local: `192.168.3.100` (porta a confirmar — 9200 padrão ou 5601 para dashboards).
+
+**Estrutura adicionada:**
+```
+backend/alembic/versions/003_opensearch_module.py
+backend/tests/test_models.py
+backend/tests/test_migrations.py   (reescrito)
+backend/tests/test_config.py       (reescrito)
+```
+
+**Removido:**
+```
+backend/app/lightrag_client.py
+backend/tests/test_lightrag_client.py
+backend/tests/test_lightrag_integration.py
+backend/tests/test_e2e_integration.py  (testava LightRAG real)
+```
