@@ -2,7 +2,7 @@ import uuid
 
 from sqlalchemy.orm import Session
 
-from app.models import ProcessedFile, WatchedFolder
+from app.models import WatchedFolder
 from app.schemas.folders import FolderCreate, FolderUpdate
 
 
@@ -49,7 +49,6 @@ def delete_folder(session: Session, folder_id: uuid.UUID, owner_id: uuid.UUID) -
     folder = get_folder(session, folder_id, owner_id)
     if folder is None:
         return False
-    session.query(ProcessedFile).filter(ProcessedFile.folder_id == folder_id).delete()
     session.delete(folder)
     session.commit()
     return True

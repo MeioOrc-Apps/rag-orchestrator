@@ -154,38 +154,11 @@ class TestDeleteFolder:
         resp = api_client.delete(f"/api/folders/{uuid.uuid4()}")
         assert resp.status_code == 404
 
-    def test_delete_folder_with_processed_files_returns_204(self, api_client, db_session):
-        """Deleting a folder that has ProcessedFile records must not 500
-        (FK constraint). Child records should be removed first."""
-        import uuid as _uuid
-        from app.models import ProcessedFile, WatchedFolder, User
-
-        # create folder via API
+    def test_delete_folder_returns_204(self, api_client):
         created = api_client.post("/api/folders", json={
             "host_path": "/data/with-files",
             "dest_subdir": "with-files",
         }).json()
-        folder_id = _uuid.UUID(created["id"])
-
-        # seed a processed file linked to that folder
-        owner = db_session.query(User).filter(User.username == "sergio").first()
-        pf = ProcessedFile(
-            owner_id=owner.id,
-            folder_id=folder_id,
-            source_path="/data/with-files/doc.md",
-            content_hash="abc123",
-            file_type="md",
-            route="direct",
-            status="done",
-        )
-        db_session.add(pf)
-        db_session.commit()
 
         resp = api_client.delete(f"/api/folders/{created['id']}")
         assert resp.status_code == 204
-
-        # child record also gone
-        remaining = db_session.query(ProcessedFile).filter(
-            ProcessedFile.folder_id == folder_id
-        ).all()
-        assert remaining == []

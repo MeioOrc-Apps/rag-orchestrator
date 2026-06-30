@@ -67,20 +67,16 @@ class TestSyncStatus:
         assert resp.json()["last_run"] is None
 
     def test_status_returns_result_after_post_sync(self, api_client, tmp_path, monkeypatch):
-        monkeypatch.setenv("INPUT_DIR", str(tmp_path / "input"))
-        (tmp_path / "input").mkdir()
         api_client.post("/api/sync")
 
         resp = api_client.get("/api/sync/status")
         body = resp.json()
         assert body["last_run"] is not None
-        assert "processed" in body
+        assert "inserted" in body
         assert "skipped" in body
-        assert "failed" in body
+        assert "deleted" in body
 
     def test_status_reflects_latest_sync(self, api_client, tmp_path, monkeypatch):
-        monkeypatch.setenv("INPUT_DIR", str(tmp_path / "input"))
-        (tmp_path / "input").mkdir()
         source = tmp_path / "src"
         source.mkdir()
         (source / "a.md").write_text("a")
@@ -93,7 +89,7 @@ class TestSyncStatus:
         api_client.post("/api/sync")
 
         resp = api_client.get("/api/sync/status")
-        assert resp.json()["processed"] == 1
+        assert resp.json()["inserted"] == 1
 
 
 pytestmark_integration = pytest.mark.integration
