@@ -72,3 +72,58 @@ class TestUnchangedFileSkipped:
         assert result["skipped"] == 1
         assert result["inserted"] == 0
         assert db_session.query(File).count() == 1
+
+
+class TestModifiedFileUpdated:
+    def test_modified_file_resets_parse_status_and_updates_hash(
+        self, db_session, folder_and_source
+    ):
+        from app.jobs.scan_job import run_scan
+        from app.models import File
+
+        folder, source = folder_and_source
+        f = source / "note.md"
+        f.write_text("original")
+
+        run_scan(db_session, [folder])
+        file_row = db_session.query(File).first()
+        old_hash = file_row.file_hash
+
+        f.write_text("modified content that is completely different")
+        result = run_scan(db_session, [folder])
+
+        assert result["updated"] == 1
+        db_session.refresh(file_row)
+        assert file_row.parse_status == "pending"
+        assert file_row.file_hash != old_hash
+
+    def test_modified_file_marks_indexed_chunks_as_deleted(
+        self, db_session, folder_and_source
+    ):
+        from app.jobs.scan_job import run_scan
+        from app.models import File, Chunk
+
+        folder, source = folder_and_source
+        f = source / "note.md"
+        f.write_text("original")
+
+        run_scan(db_session, [folder])
+        file_row = db_session.query(File).first()
+
+        chunk = Chunk(
+            file_id=file_row.id,
+            chunk_index=0,
+            content_original="original",
+            source_language="en",
+            char_count=8,
+            index_status="done",
+            opensearch_id="os-1",
+        )
+        db_session.add(chunk)
+        db_session.commit()
+
+        f.write_text("completely different content here now")
+        run_scan(db_session, [folder])
+
+        db_session.refresh(chunk)
+        assert chunk.index_status == "deleted"
