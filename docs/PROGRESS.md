@@ -334,3 +334,31 @@ backend/tests/test_lightrag_client.py
 backend/tests/test_lightrag_integration.py
 backend/tests/test_e2e_integration.py  (testava LightRAG real)
 ```
+
+---
+
+## Etapa 11 — OpenSearch Client ✅ (2026-06-30)
+
+**Branch:** `feat/etapa-11-opensearch-client` → merged na `main`
+
+**Comportamentos implementados:**
+- `OpenSearchClient.ensure_index(domain)`: cria `{prefix}_{domain}` com analyzers PT+EN (custom stemmer + stop words), `term_vector=with_positions_offsets`; HEAD antes do PUT; idempotente.
+- `OpenSearchClient.bulk_index(domain, docs)`: POST `/_bulk` ndjson; retorna `(successes, errors)` como `(chunk_id, os_id)` / `(chunk_id, reason)`.
+- `OpenSearchClient.bulk_delete(domain, ids)`: POST `/_bulk` delete; retorna ids confirmados deletados.
+- `OpenSearchClient.search(query, domain, limit, offset)`: `multi_match` em `content_pt`+`content_en`; highlight; `domain=None` → `rag_*` (todos os índices).
+- `OpenSearchClient.get_index_stats(domain)`: retorna `{docs_count, index_size_mb}`; 404 → zeros.
+
+**Testes:** 168 passed, 1 skipped (integration real — requer `TEST_OPENSEARCH_HOST`). 11 unit tests com `unittest.mock.patch` em `httpx.Client`.
+
+**Decisões:**
+- Unit tests em `test_opensearch_client.py` mocam `httpx.Client` inteiro; sem deps externas.
+- Integration tests em `test_opensearch_integration.py` usam `TEST_OPENSEARCH_HOST` env var (≠ `OPENSEARCH_HOST` do conftest); skip no module level se ausente.
+- Prefixo `rag_test` em integração para não poluir índices reais.
+- `_json_line()` helper usa `json.dumps(default=str)` para serializar UUID/datetime.
+
+**Estrutura adicionada:**
+```
+backend/app/opensearch_client.py
+backend/tests/test_opensearch_client.py
+backend/tests/test_opensearch_integration.py
+```
