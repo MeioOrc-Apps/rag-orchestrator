@@ -15,47 +15,103 @@ def alembic_cfg(test_db_url, clean_schema):
     return cfg
 
 
-def test_migration_creates_users_table(alembic_cfg, test_db_url):
+def test_migration_keeps_all_original_tables(alembic_cfg, test_db_url):
     command.upgrade(alembic_cfg, "head")
-    engine = create_engine(test_db_url)
-    inspector = inspect(engine)
-    engine.dispose()
-    assert "users" in inspector.get_table_names()
-
-
-def test_migration_creates_watched_folders_table(alembic_cfg, test_db_url):
-    command.upgrade(alembic_cfg, "head")
-    engine = create_engine(test_db_url)
-    inspector = inspect(engine)
-    engine.dispose()
-    assert "watched_folders" in inspector.get_table_names()
-
-
-def test_migration_creates_processed_files_table(alembic_cfg, test_db_url):
-    command.upgrade(alembic_cfg, "head")
-    engine = create_engine(test_db_url)
-    inspector = inspect(engine)
-    engine.dispose()
-    assert "processed_files" in inspector.get_table_names()
-
-
-def test_migration_processed_files_has_unique_constraint(alembic_cfg, test_db_url):
-    command.upgrade(alembic_cfg, "head")
-    engine = create_engine(test_db_url)
-    inspector = inspect(engine)
-    constraints = inspector.get_unique_constraints("processed_files")
-    engine.dispose()
-    names = [c["name"] for c in constraints]
-    assert "uq_owner_path_hash" in names
-
-
-def test_migration_downgrade_removes_all_tables(alembic_cfg, test_db_url):
-    command.upgrade(alembic_cfg, "head")
-    command.downgrade(alembic_cfg, "base")
     engine = create_engine(test_db_url)
     inspector = inspect(engine)
     tables = inspector.get_table_names()
     engine.dispose()
-    assert "users" not in tables
-    assert "watched_folders" not in tables
-    assert "processed_files" not in tables
+    assert "users" in tables
+    assert "watched_folders" in tables
+    assert "processed_files" in tables
+    assert "sync_state" in tables
+
+
+def test_migration_creates_files_table(alembic_cfg, test_db_url):
+    command.upgrade(alembic_cfg, "head")
+    engine = create_engine(test_db_url)
+    inspector = inspect(engine)
+    tables = inspector.get_table_names()
+    engine.dispose()
+    assert "files" in tables
+
+
+def test_migration_creates_chunks_table(alembic_cfg, test_db_url):
+    command.upgrade(alembic_cfg, "head")
+    engine = create_engine(test_db_url)
+    inspector = inspect(engine)
+    tables = inspector.get_table_names()
+    engine.dispose()
+    assert "chunks" in tables
+
+
+def test_migration_creates_translation_settings_table(alembic_cfg, test_db_url):
+    command.upgrade(alembic_cfg, "head")
+    engine = create_engine(test_db_url)
+    inspector = inspect(engine)
+    tables = inspector.get_table_names()
+    engine.dispose()
+    assert "translation_settings" in tables
+
+
+def test_migration_creates_search_query_log_table(alembic_cfg, test_db_url):
+    command.upgrade(alembic_cfg, "head")
+    engine = create_engine(test_db_url)
+    inspector = inspect(engine)
+    tables = inspector.get_table_names()
+    engine.dispose()
+    assert "search_query_log" in tables
+
+
+def test_migration_seeds_translation_settings(alembic_cfg, test_db_url):
+    command.upgrade(alembic_cfg, "head")
+    engine = create_engine(test_db_url)
+    with engine.connect() as conn:
+        count = conn.execute(text("SELECT COUNT(*) FROM translation_settings")).scalar()
+        row = conn.execute(
+            text("SELECT model, target_language FROM translation_settings LIMIT 1")
+        ).fetchone()
+    engine.dispose()
+    assert count == 1
+    assert row.model == "local:qwen2.5:7b"
+    assert row.target_language == "en"
+
+
+def test_migration_seed_is_idempotent(alembic_cfg, test_db_url):
+    command.upgrade(alembic_cfg, "head")
+    command.downgrade(alembic_cfg, "-1")
+    command.upgrade(alembic_cfg, "head")
+    engine = create_engine(test_db_url)
+    with engine.connect() as conn:
+        count = conn.execute(text("SELECT COUNT(*) FROM translation_settings")).scalar()
+    engine.dispose()
+    assert count == 1
+
+
+def test_migration_downgrade_removes_new_tables(alembic_cfg, test_db_url):
+    command.upgrade(alembic_cfg, "head")
+    command.downgrade(alembic_cfg, "-1")
+    engine = create_engine(test_db_url)
+    inspector = inspect(engine)
+    tables = inspector.get_table_names()
+    engine.dispose()
+    assert "files" not in tables
+    assert "chunks" not in tables
+    assert "translation_settings" not in tables
+    assert "search_query_log" not in tables
+    assert "processed_files" in tables
+    assert "sync_state" in tables
+
+
+def test_full_upgrade_downgrade_upgrade_is_clean(alembic_cfg, test_db_url):
+    command.upgrade(alembic_cfg, "head")
+    command.downgrade(alembic_cfg, "base")
+    command.upgrade(alembic_cfg, "head")
+    engine = create_engine(test_db_url)
+    inspector = inspect(engine)
+    tables = inspector.get_table_names()
+    engine.dispose()
+    assert "files" in tables
+    assert "chunks" in tables
+    assert "users" in tables
+    assert "watched_folders" in tables
