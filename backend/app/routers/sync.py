@@ -1,14 +1,12 @@
 import logging
 from datetime import datetime, timezone
-from pathlib import Path
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db
-from app.docling_client import DoclingClient
-from app.models import SyncState, User, WatchedFolder
-from app.pipeline.ingestor import run_pipeline
+from app.jobs.scan_job import run_scan
+from app.models import User, WatchedFolder
 
 logger = logging.getLogger(__name__)
 
@@ -27,46 +25,18 @@ def _default_owner(db: Session) -> User:
     return user
 
 
-def _execute_sync(db: Session, retry_failed: bool = True) -> dict:
+def _execute_sync(db: Session) -> dict:
     global _last_sync_result
-    from app.config import Settings
-    settings = Settings()
     owner = _default_owner(db)
-
     folders = (
         db.query(WatchedFolder)
         .filter(WatchedFolder.owner_id == owner.id, WatchedFolder.enabled.is_(True))
         .all()
     )
-
-    input_dir = Path(settings.input_dir)
-    docling = DoclingClient(settings.docling_base_url)
-    result = run_pipeline(db, folders, owner.id, input_dir, docling_client=docling, retry_failed=retry_failed)
-
-    scan_triggered = False
+    result = run_scan(db, folders)
     now = datetime.now(timezone.utc)
-    _last_sync_result = {
-        "last_run": now.isoformat(),
-        "processed": result["processed"],
-        "skipped": result["skipped"],
-        "failed": result["failed"],
-        "scan_triggered": scan_triggered,
-    }
-    _persist_sync_state(db, now, result, scan_triggered)
+    _last_sync_result = {"last_run": now.isoformat(), **result}
     return _last_sync_result
-
-
-def _persist_sync_state(db: Session, now: datetime, result: dict, scan_triggered: bool) -> None:
-    state = db.query(SyncState).filter(SyncState.id == 1).first()
-    if state is None:
-        state = SyncState(id=1)
-        db.add(state)
-    state.last_run = now
-    state.processed = result["processed"]
-    state.skipped = result["skipped"]
-    state.failed = result["failed"]
-    state.scan_triggered = scan_triggered
-    db.commit()
 
 
 @router.post("")
@@ -75,19 +45,10 @@ def trigger_sync(db: Session = Depends(get_db)):
 
 
 @router.get("/status")
-def sync_status(db: Session = Depends(get_db)):
+def sync_status():
     if _last_sync_result is not None:
         return _last_sync_result
-    state = db.query(SyncState).filter(SyncState.id == 1).first()
-    if state is None or state.last_run is None:
-        return {"last_run": None}
-    return {
-        "last_run": state.last_run.isoformat(),
-        "processed": state.processed,
-        "skipped": state.skipped,
-        "failed": state.failed,
-        "scan_triggered": state.scan_triggered,
-    }
+    return {"last_run": None}
 
 
 def run_sync_job() -> None:
@@ -100,7 +61,7 @@ def run_sync_job() -> None:
     factory = get_session_factory(engine)
     db = factory()
     try:
-        _execute_sync(db, retry_failed=False)
+        _execute_sync(db)
     except Exception as exc:
         logger.error("Scheduled sync failed: %s", exc)
     finally:

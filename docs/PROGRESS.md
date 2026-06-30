@@ -362,3 +362,40 @@ backend/app/opensearch_client.py
 backend/tests/test_opensearch_client.py
 backend/tests/test_opensearch_integration.py
 ```
+
+---
+
+## Etapa 12 — scan_job ✅ (2026-06-30)
+
+**Branch:** `feat/etapa-12-scan-job` → merged na `main`
+
+**Comportamentos implementados:**
+- `scan_job.run_scan(db, folders)`: escaneia pastas ativas, insere/atualiza/soft-deleta na tabela `files`; retorna `{scanned, inserted, updated, deleted, skipped}`.
+- Novo arquivo → INSERT `files` com `parse_status='pending'`, `domain=folder.dest_subdir`.
+- Arquivo modificado (hash diferente) → chunks marcados `index_status='deleted'`, hash atualizado, `parse_status='pending'`.
+- Arquivo removido do disco → `files.deleted_at=now()`, chunks marcados `index_status='deleted'`.
+- Arquivo inalterado → skip (sem escrita).
+- `POST /api/sync` agora chama `run_scan()` e retorna novo shape.
+- Migration 004: dropa `processed_files` e `sync_state` (tabelas legadas).
+
+**Removido:**
+- `ProcessedFile`, `SyncState` de `models.py`
+- `pipeline/ingestor.py` (copiava arquivos para INPUT_DIR → LightRAG, substituído por scan_job)
+- `lightrag_client.py` (remanescente não removido em etapa 10, agora deletado)
+- `test_docling_pipeline.py`, `test_multiformat_pipeline.py`, `test_files_api.py` (testavam comportamento do ingestor legado)
+
+**Testes:** 153 passed (1 skipped — integration opensearch).
+
+**Decisões:**
+- `files` não tem `folder_id` — identificação de qual pasta originou um arquivo é por `path.startswith(folder.host_path)`.
+- `routers/files.py` stubado (retorna lista vazia) até etapa 16 reescrever a API de arquivos.
+- `test_pipeline.py` reescrito para testar scanner/router primitivos em vez do ingestor.
+- `crud/folders.py`: `delete_folder` não mais cascateia ProcessedFile; `files` table não tem FK para `watched_folders`.
+
+**Estrutura adicionada:**
+```
+backend/app/jobs/__init__.py
+backend/app/jobs/scan_job.py
+backend/alembic/versions/004_drop_legacy_tables.py
+backend/tests/test_scan_job.py
+```
