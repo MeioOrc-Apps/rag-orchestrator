@@ -2,9 +2,11 @@ import { type ReactElement, useState } from 'react'
 import { FolderList } from './components/FolderList'
 import { StatusPage } from './components/StatusPage'
 import { FilesPage } from './components/FilesPage'
+import { SearchPage } from './components/SearchPage'
+import { AdminPage } from './components/AdminPage'
 import './App.css'
 
-type Page = 'status' | 'folders' | 'files'
+type Page = 'status' | 'folders' | 'files' | 'search' | 'admin'
 
 function IconPipeline() {
   return (
@@ -42,10 +44,29 @@ function IconFiles() {
   )
 }
 
+function IconSearch() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+  )
+}
+
+function IconAdmin() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14"/>
+    </svg>
+  )
+}
+
 const PAGES: { id: Page; label: string; Icon: () => ReactElement }[] = [
   { id: 'status',  label: 'Status',  Icon: IconStatus },
   { id: 'folders', label: 'Folders', Icon: IconFolders },
   { id: 'files',   label: 'Files',   Icon: IconFiles },
+  { id: 'search',  label: 'Search',  Icon: IconSearch },
+  { id: 'admin',   label: 'Admin',   Icon: IconAdmin },
 ]
 
 export default function App() {
@@ -87,6 +108,8 @@ export default function App() {
         {page === 'status'  && <StatusPage />}
         {page === 'folders' && <FolderList />}
         {page === 'files'   && <FilesPage />}
+        {page === 'search'  && <SearchPage />}
+        {page === 'admin'   && <AdminPage />}
       </main>
     </>
   )

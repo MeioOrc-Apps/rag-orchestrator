@@ -6,20 +6,18 @@ import * as api from '../api'
 
 vi.mock('../api')
 
-const mockFiles: api.ProcessedFile[] = [
+const mockFiles: api.File[] = [
   {
-    id: '1', owner_id: 'o1', folder_id: 'f1',
-    source_path: '/data/docs/note.md', dest_path: '/input/docs/note.md',
-    content_hash: 'abc123', file_type: 'md', route: 'direct',
-    status: 'done', error_message: null,
-    processed_at: '2026-06-14T10:00:00Z', created_at: '2026-06-14T10:00:00Z',
+    id: '1', path: '/data/docs/note.md', filename: 'note.md',
+    domain: 'docs', file_hash: 'abc123', file_size_bytes: 1024,
+    parse_status: 'done', parse_error: null,
+    created_at: '2026-06-14T10:00:00Z', updated_at: '2026-06-14T10:00:00Z',
   },
   {
-    id: '2', owner_id: 'o1', folder_id: 'f1',
-    source_path: '/data/docs/report.pdf', dest_path: null,
-    content_hash: 'def456', file_type: 'pdf', route: 'docling',
-    status: 'failed', error_message: 'Docling server unreachable',
-    processed_at: null, created_at: '2026-06-14T10:01:00Z',
+    id: '2', path: '/data/docs/report.pdf', filename: 'report.pdf',
+    domain: 'docs', file_hash: 'def456', file_size_bytes: 204800,
+    parse_status: 'failed', parse_error: 'Parser timeout',
+    created_at: '2026-06-14T10:01:00Z', updated_at: '2026-06-14T10:01:00Z',
   },
 ]
 
@@ -29,7 +27,8 @@ const emptyPage: api.PaginatedFiles = { items: [], total: 0, limit: 50, offset: 
 describe('FilesPage', () => {
   beforeEach(() => {
     vi.mocked(api.listFiles).mockResolvedValue(mockPage)
-    vi.mocked(api.listFolders).mockResolvedValue([])
+    vi.mocked(api.reindexFile).mockResolvedValue(undefined)
+    vi.mocked(api.softDeleteFile).mockResolvedValue(undefined)
   })
 
   it('renders list of files from API', async () => {
@@ -41,7 +40,7 @@ describe('FilesPage', () => {
     expect(screen.getByText('/data/docs/report.pdf')).toBeInTheDocument()
   })
 
-  it('shows status badge for each file', async () => {
+  it('shows parse_status badge for each file', async () => {
     render(<FilesPage />)
     await waitFor(() => {
       expect(screen.getByText('done')).toBeInTheDocument()
@@ -49,10 +48,17 @@ describe('FilesPage', () => {
     })
   })
 
-  it('shows error message for failed files', async () => {
+  it('shows parse_error for failed files', async () => {
     render(<FilesPage />)
     await waitFor(() => {
-      expect(screen.getByText('Docling server unreachable')).toBeInTheDocument()
+      expect(screen.getByText('Parser timeout')).toBeInTheDocument()
+    })
+  })
+
+  it('shows domain for each file', async () => {
+    render(<FilesPage />)
+    await waitFor(() => {
+      expect(screen.getAllByText('docs').length).toBeGreaterThan(0)
     })
   })
 
@@ -64,7 +70,7 @@ describe('FilesPage', () => {
     })
   })
 
-  it('filter buttons call API with correct status', async () => {
+  it('status filter tabs call API with correct parse_status', async () => {
     const user = userEvent.setup()
     render(<FilesPage />)
     await waitFor(() => screen.getAllByTestId('file-item'))
@@ -74,12 +80,12 @@ describe('FilesPage', () => {
 
     await waitFor(() => {
       expect(api.listFiles).toHaveBeenCalledWith(
-        expect.objectContaining({ status: 'failed' })
+        expect.objectContaining({ parse_status: 'failed' })
       )
     })
   })
 
-  it('all filter shows files without status filter', async () => {
+  it('all filter removes parse_status filter', async () => {
     const user = userEvent.setup()
     render(<FilesPage />)
     await waitFor(() => screen.getAllByTestId('file-item'))
@@ -87,54 +93,36 @@ describe('FilesPage', () => {
     await user.click(screen.getByRole('button', { name: /^all$/i }))
     await waitFor(() => {
       const calls = vi.mocked(api.listFiles).mock.calls
-      const lastCall = calls[calls.length - 1][0] as api.FilesQuery
-      expect(lastCall.status).toBeUndefined()
+      const last = calls[calls.length - 1][0] as api.FilesQuery
+      expect(last.parse_status).toBeUndefined()
     })
   })
 
-  it('shows folder selector when folders exist', async () => {
-    vi.mocked(api.listFolders).mockResolvedValue([
-      { id: 'f1', owner_id: 'o1', host_path: '/docs', dest_subdir: 'docs', recursive: true, enabled: true, created_at: '' },
-    ])
-    render(<FilesPage />)
-    await waitFor(() => {
-      expect(screen.getByRole('combobox')).toBeInTheDocument()
-    })
-  })
-
-  it('folder filter calls API with folder_id', async () => {
-    vi.mocked(api.listFolders).mockResolvedValue([
-      { id: 'f1', owner_id: 'o1', host_path: '/docs', dest_subdir: 'docs', recursive: true, enabled: true, created_at: '' },
-    ])
-    const user = userEvent.setup()
-    render(<FilesPage />)
-    await waitFor(() => screen.getByRole('combobox'))
-
-    await user.selectOptions(screen.getByRole('combobox'), 'f1')
-    await waitFor(() => {
-      expect(api.listFiles).toHaveBeenCalledWith(
-        expect.objectContaining({ folder_id: 'f1' })
-      )
-    })
-  })
-
-  it('sort buttons toggle order when clicked twice on same field', async () => {
+  it('reindex button calls reindexFile and refreshes', async () => {
     const user = userEvent.setup()
     render(<FilesPage />)
     await waitFor(() => screen.getAllByTestId('file-item'))
 
-    await user.click(screen.getByRole('button', { name: /path/i }))
-    await waitFor(() => {
-      expect(api.listFiles).toHaveBeenCalledWith(
-        expect.objectContaining({ sort_by: 'source_path', order: 'desc' })
-      )
-    })
+    const reindexBtns = screen.getAllByRole('button', { name: /reindex/i })
+    await user.click(reindexBtns[0])
 
-    await user.click(screen.getByRole('button', { name: /path/i }))
     await waitFor(() => {
-      expect(api.listFiles).toHaveBeenCalledWith(
-        expect.objectContaining({ sort_by: 'source_path', order: 'asc' })
-      )
+      expect(api.reindexFile).toHaveBeenCalledWith('1')
+      expect(api.listFiles).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  it('delete button calls softDeleteFile and refreshes', async () => {
+    const user = userEvent.setup()
+    render(<FilesPage />)
+    await waitFor(() => screen.getAllByTestId('file-item'))
+
+    const deleteBtns = screen.getAllByRole('button', { name: /delete/i })
+    await user.click(deleteBtns[0])
+
+    await waitFor(() => {
+      expect(api.softDeleteFile).toHaveBeenCalledWith('1')
+      expect(api.listFiles).toHaveBeenCalledTimes(2)
     })
   })
 })
