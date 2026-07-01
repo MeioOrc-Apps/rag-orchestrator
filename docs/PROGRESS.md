@@ -399,3 +399,30 @@ backend/app/jobs/scan_job.py
 backend/alembic/versions/004_drop_legacy_tables.py
 backend/tests/test_scan_job.py
 ```
+
+---
+
+## Etapa 13 — parse_job (chunking + language detection) ✅ (2026-06-30)
+
+**Branch:** `feat/etapa-13-parse-job` → merged na `main`
+
+**Comportamentos implementados:**
+- `detect_language(text)`: amostra os 25–75% centrais do texto (máx 2000 chars); usa `langdetect` com `DetectorFactory.seed=0` (determinístico); threshold 0.80; retorna `'pt'|'en'|'unknown'`; texto vazio/curto → `'unknown'`.
+- `chunk_text(text, size, overlap)`: prefere quebra em `\n\n`, fallback em `.`, fallback em espaço; nunca corta palavra; descarta pedaços < 50 chars.
+- `run_parse(db)`: busca `files` com `parse_status='pending'` e `deleted_at IS NULL`; despacha via `route()`; insere `Chunk` rows; `translation_status='not_needed'` para EN, `'pending'` para PT/unknown; em erro: `parse_status='failed'` com mensagem, continua o lote.
+
+**Nova dep:** `langdetect>=1.0.9` adicionado a `pyproject.toml`.
+
+**Testes:** 173 passed, 1 skipped. 20 novos testes em `test_parse_job.py`.
+
+**Decisões:**
+- Todos os 5 comportamentos TDD implementados em ciclo único (detect_language + chunk_text + run_parse são mutuamente dependentes; separá-los causaria falhas de import na suíte).
+- `_MIN_CHUNK_CHARS=50`: aplica-se a pedaços resultantes de split, não ao documento inteiro.
+- `_read_file` despacha para pdf_direct/markitdown/docling/direct conforme `route()`; `unsupported` levanta `ValueError` → `parse_status='failed'`.
+- Settings instanciado dentro do `run_parse` para respeitar overrides de env nos testes.
+
+**Estrutura adicionada:**
+```
+backend/app/jobs/parse_job.py
+backend/tests/test_parse_job.py
+```
