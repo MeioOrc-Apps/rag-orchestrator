@@ -145,6 +145,7 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
             "enrichment_model": ts.enrichment_model if ts else "",
             "translation_enabled": ts.enabled if ts else False,
             "translation_batch_size": ts.batch_size if ts else 5,
+            "translate_workers": ts.translate_workers if ts else 10,
             "prompt_template_en": ts.prompt_template_en if ts else "",
             "prompt_template_pt": ts.prompt_template_pt if ts else "",
             "prompt_enrichment": ts.prompt_enrichment if ts else "",
@@ -163,6 +164,7 @@ class LLMSettingsUpdate(BaseModel):
     enrichment_model: str | None = None
     translation_enabled: bool | None = None
     translation_batch_size: int | None = None
+    translate_workers: int | None = None
     prompt_template_en: str | None = None
     prompt_template_pt: str | None = None
     prompt_enrichment: str | None = None
@@ -197,6 +199,8 @@ def update_settings(body: SettingsUpdate, db: Session = Depends(get_db)) -> dict
             ts.enabled = llm.translation_enabled
         if llm.translation_batch_size is not None:
             ts.batch_size = llm.translation_batch_size
+        if llm.translate_workers is not None:
+            ts.translate_workers = llm.translate_workers
         if llm.prompt_template_en is not None:
             ts.prompt_template_en = llm.prompt_template_en
         if llm.prompt_template_pt is not None:

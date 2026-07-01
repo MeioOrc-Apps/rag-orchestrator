@@ -103,6 +103,7 @@ class TranslationSettings(Base):
     prompt_enrichment: Mapped[str] = mapped_column(Text, nullable=False)
     target_language: Mapped[str] = mapped_column(Text, nullable=False, default="en")
     batch_size: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
+    translate_workers: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
 

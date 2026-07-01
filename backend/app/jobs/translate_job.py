@@ -59,6 +59,7 @@ def run_translate(
     enabled = ts.enabled if ts else False
     prompt_pt = (ts.prompt_template_pt if ts else None) or _DEFAULT_PROMPT_PT
     prompt_en = (ts.prompt_template_en if ts else None) or _DEFAULT_PROMPT_EN
+    effective_workers = max_workers if ts is None else ts.translate_workers
 
     pending = (
         db.query(Chunk)
@@ -99,7 +100,7 @@ def run_translate(
         jobs.append((chunk.id, is_en, chunk.content_original, prompt))
 
     results: list[_TranslateResult] = []
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+    with ThreadPoolExecutor(max_workers=effective_workers) as executor:
         future_map = {
             executor.submit(
                 _translate_with_retry, client, text, prompt, effective_max_retries

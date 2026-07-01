@@ -20,6 +20,7 @@ export function AdminPage() {
     enrichment_model: '',
     translation_enabled: false,
     translation_batch_size: 5,
+    translate_workers: 10,
     prompt_template_en: '',
     prompt_template_pt: '',
     prompt_enrichment: '',
@@ -43,6 +44,7 @@ export function AdminPage() {
           enrichment_model: cfg.llm.enrichment_model,
           translation_enabled: cfg.llm.translation_enabled,
           translation_batch_size: cfg.llm.translation_batch_size,
+          translate_workers: cfg.llm.translate_workers,
           prompt_template_en: cfg.llm.prompt_template_en,
           prompt_template_pt: cfg.llm.prompt_template_pt,
           prompt_enrichment: cfg.llm.prompt_enrichment,
@@ -225,6 +227,20 @@ export function AdminPage() {
                   min={1}
                   value={llmForm.translation_batch_size}
                   onChange={e => setLlmForm(f => ({ ...f, translation_batch_size: Number(e.target.value) }))}
+                />
+              </div>
+              <div className="settings-field">
+                <label className="settings-label">
+                  Parallel Workers
+                  <span className="settings-hint">Concurrent LLM calls per batch</span>
+                </label>
+                <input
+                  className="settings-input settings-input-sm"
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={llmForm.translate_workers}
+                  onChange={e => setLlmForm(f => ({ ...f, translate_workers: Number(e.target.value) }))}
                 />
               </div>
             </div>

@@ -234,6 +234,7 @@ export interface LLMSettings {
   enrichment_model: string
   translation_enabled: boolean
   translation_batch_size: number
+  translate_workers: number
   prompt_template_en: string
   prompt_template_pt: string
   prompt_enrichment: string
@@ -256,6 +257,7 @@ export interface LLMSettingsUpdate {
   enrichment_model?: string
   translation_enabled?: boolean
   translation_batch_size?: number
+  translate_workers?: number
   prompt_template_en?: string
   prompt_template_pt?: string
   prompt_enrichment?: string
