@@ -526,6 +526,14 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+}
+
+.domain-filter {
+  max-width: 180px;
+  height: 32px;
+  padding: 4px 10px;
+  font-family: inherit;
 }
 
 .folder-select {
@@ -918,4 +926,11 @@ body {
 
   /* Buttons */
   .btn-danger-sm { opacity: 0.6; }
+
+  /* Domain filter: full width when wrapped */
+  .domain-filter { max-width: 100%; flex: 1 1 100%; }
+
+  /* Admin actions: stack */
+  .admin-actions { width: 100%; }
+  .admin-actions .btn { flex: 1; justify-content: center; }
 }

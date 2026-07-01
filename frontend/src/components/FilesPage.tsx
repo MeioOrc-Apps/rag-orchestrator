@@ -83,11 +83,10 @@ export function FilesPage() {
 
           <input
             type="text"
-            className="form-input"
+            className="form-input domain-filter"
             placeholder="Filter by domain…"
             value={domain}
             onChange={e => { setDomain(e.target.value); setPage(0) }}
-            style={{ maxWidth: 180, height: 32, padding: '4px 10px', fontFamily: 'inherit' }}
           />
         </div>
       </div>
