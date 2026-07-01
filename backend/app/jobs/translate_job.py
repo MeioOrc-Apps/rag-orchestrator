@@ -126,8 +126,12 @@ def run_translate(
 
     logger.info("translate_job: starting %d chunks with %d workers", len(jobs), effective_workers)
 
-    # Parallel HTTP calls — DB session NOT touched inside threads
-    results: list[_TranslateResult] = []
+    # HTTP call timeout + retry headroom (per future, not per batch)
+    _FUTURE_TIMEOUT = 150.0  # slightly above httpx timeout of 120s
+
+    # Parallel HTTP calls — DB session NOT touched inside threads.
+    # Write + commit each result as it arrives so progress is visible
+    # immediately and completed work is not lost if the job is interrupted.
     with ThreadPoolExecutor(max_workers=effective_workers) as executor:
         future_map = {
             executor.submit(
@@ -135,46 +139,44 @@ def run_translate(
             ): j
             for j in jobs
         }
-        for future in as_completed(future_map):
+        for future in as_completed(future_map, timeout=_FUTURE_TIMEOUT * len(jobs)):
             j = future_map[future]
             try:
-                text = future.result()
-                if text is None:
-                    logger.warning("translate_job: chunk %s failed after %d retries", j.chunk_id, effective_max_retries)
-                    results.append(_TranslateResult(j.chunk_id, j.is_en, None, j.original, f"Failed after {effective_max_retries} retries"))
-                else:
-                    results.append(_TranslateResult(j.chunk_id, j.is_en, text, j.original, None))
+                text = future.result(timeout=_FUTURE_TIMEOUT)
             except Exception as exc:
                 logger.warning("translate_job: chunk %s raised %s", j.chunk_id, exc)
-                results.append(_TranslateResult(j.chunk_id, j.is_en, None, j.original, str(exc)))
-
-    # Write results back in a fresh DB round-trip
-    for r in results:
-        chunk = db.get(Chunk, r.chunk_id)
-        if chunk is None:
-            continue
-        if r.translation is None:
-            chunk.translation_status = "failed"
-            chunk.translation_error = r.error
-            chunk.updated_at = now
-            failed += 1
-        else:
-            if r.is_en:
-                chunk.content_en = r.original
-                chunk.content_pt = r.translation
+                text = None
+                error = str(exc)
             else:
-                chunk.content_pt = r.original
-                chunk.content_en = r.translation
-            chunk.translation_status = "done"
-            chunk.translation_model = model
-            chunk.translated_at = now
-            chunk.translation_error = None
-            chunk.index_status = "pending"
-            chunk.updated_at = now
-            translated += 1
+                error = None if text is not None else f"Failed after {effective_max_retries} retries"
+                if text is None:
+                    logger.warning("translate_job: chunk %s failed after %d retries", j.chunk_id, effective_max_retries)
 
-    db.commit()
-    logger.info("translate_job: wrote translated=%d failed=%d", translated, failed)
+            chunk = db.get(Chunk, j.chunk_id)
+            if chunk is None:
+                continue
+            if text is None:
+                chunk.translation_status = "failed"
+                chunk.translation_error = error
+                chunk.updated_at = now
+                failed += 1
+            else:
+                if j.is_en:
+                    chunk.content_en = j.original
+                    chunk.content_pt = text
+                else:
+                    chunk.content_pt = j.original
+                    chunk.content_en = text
+                chunk.translation_status = "done"
+                chunk.translation_model = model
+                chunk.translated_at = now
+                chunk.translation_error = None
+                chunk.index_status = "pending"
+                chunk.updated_at = now
+                translated += 1
+            db.commit()
+
+    logger.info("translate_job: completed translated=%d failed=%d", translated, failed)
     return {"translated": translated, "failed": failed}
 
 
