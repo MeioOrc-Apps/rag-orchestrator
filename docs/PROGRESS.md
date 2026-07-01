@@ -451,3 +451,28 @@ backend/app/jobs/translate_job.py
 backend/tests/test_llm_client.py
 backend/tests/test_translate_job.py
 ```
+
+---
+
+## Etapa 15 — index_job + delete_job ✅ (2026-06-30)
+
+**Branch:** `feat/etapa-15-index-delete-jobs` → merged na `main`
+
+**Comportamentos implementados:**
+- `index_job.run_index(db)`: busca chunks com `translation_status IN ('done','not_needed')` e `index_status='pending'`; agrupa por `domain`; chama `ensure_index(domain)` antes do primeiro batch; `bulk_index` em lotes de 100; sucesso → `index_status='done'`, `opensearch_id`, `indexed_at`; falha parcial → `index_status='failed'`, `index_error`; successes committed mesmo se há falhas.
+- `delete_job.run_delete(db)`: busca chunks com `index_status='deleted'`; agrupa por domain; chama `bulk_delete` apenas para chunks com `opensearch_id`; hard-delete do DB somente após confirmação do OS; chunks sem `opensearch_id` hard-deletados diretamente sem chamada ao OS.
+
+**Testes:** 208 passed, 1 skipped. 15 novos testes em `test_index_job.py` e `test_delete_job.py` (integration, mocked OpenSearchClient).
+
+**Decisões:**
+- `index_job` usa `join(Chunk.file)` para acessar `domain` sem N+1 queries.
+- `delete_job` retorna `{deleted_from_os, deleted_from_db}` para distinguir confirmações do OS vs remoções diretas.
+- Se `bulk_delete` não confirma um `opensearch_id`, chunk permanece no DB (defensive — pode ser retentado).
+
+**Estrutura adicionada:**
+```
+backend/app/jobs/index_job.py
+backend/app/jobs/delete_job.py
+backend/tests/test_index_job.py
+backend/tests/test_delete_job.py
+```
