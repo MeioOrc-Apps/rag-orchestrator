@@ -39,10 +39,7 @@ def run_index(db: Session, batch_size: int = _BATCH_SIZE) -> dict:
     chunks = (
         db.query(Chunk)
         .join(Chunk.file)
-        .filter(
-            Chunk.translation_status == "done",
-            Chunk.index_status == "pending",
-        )
+        .filter(Chunk.index_status == "pending")
         .limit(batch_size)
         .all()
     )

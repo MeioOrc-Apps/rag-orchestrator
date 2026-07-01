@@ -169,7 +169,8 @@ class TestIndexJobPartialFailure:
 
 
 class TestIndexJobSkipsNotReady:
-    def test_pending_translation_chunk_not_indexed(self, db_session, tmp_path):
+    def test_pending_translation_chunk_is_indexed_immediately(self, db_session, tmp_path):
+        """Chunks are indexed regardless of translation status — re-indexed after translation."""
         from app.jobs.index_job import run_index
         from app.models import File, Chunk
         from app.pipeline.scanner import compute_hash
@@ -190,10 +191,14 @@ class TestIndexJobSkipsNotReady:
         )
         db_session.add(chunk)
         db_session.commit()
+        db_session.refresh(chunk)
 
         with patch("app.jobs.index_job.OpenSearchClient") as MockOS:
+            instance = MockOS.return_value
+            instance.ensure_index.return_value = True
+            instance.bulk_index.return_value = ([(str(chunk.id), "os-1")], [])
             run_index(db_session)
-            MockOS.return_value.bulk_index.assert_not_called()
+            instance.bulk_index.assert_called_once()
 
     def test_already_indexed_chunk_not_re_indexed(self, db_session, tmp_path):
         from app.jobs.index_job import run_index

@@ -119,6 +119,16 @@ class TestTranslatePTtoEN:
         db_session.refresh(pending_pt_chunk)
         assert pending_pt_chunk.translated_at is not None
 
+    def test_successful_translation_resets_index_status_to_pending(self, db_session, pending_pt_chunk):
+        from app.jobs.translate_job import run_translate
+
+        with patch("app.jobs.translate_job.LLMClient") as MockLLM:
+            MockLLM.return_value.translate.return_value = "Hello"
+            run_translate(db_session)
+
+        db_session.refresh(pending_pt_chunk)
+        assert pending_pt_chunk.index_status == "pending"
+
 
 # ── EN→PT translation ────────────────────────────────────────────────────────
 
