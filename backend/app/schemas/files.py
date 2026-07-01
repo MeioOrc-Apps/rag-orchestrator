@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import uuid
 from datetime import datetime
 from typing import Generic, TypeVar
@@ -5,6 +7,14 @@ from typing import Generic, TypeVar
 from pydantic import BaseModel
 
 T = TypeVar("T")
+
+
+class ChunksSummary(BaseModel):
+    total: int
+    done: int
+    pending: int
+    failed: int
+    deleted: int
 
 
 class FileResponse(BaseModel):
@@ -15,9 +25,15 @@ class FileResponse(BaseModel):
     file_hash: str
     file_size_bytes: int
     parse_status: str
+    parse_error: str | None = None
     created_at: datetime
+    updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class FileDetailResponse(FileResponse):
+    chunks: ChunksSummary
 
 
 class PaginatedResponse(BaseModel, Generic[T]):

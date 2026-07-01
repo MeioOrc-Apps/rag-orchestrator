@@ -476,3 +476,34 @@ backend/app/jobs/delete_job.py
 backend/tests/test_index_job.py
 backend/tests/test_delete_job.py
 ```
+
+---
+
+## Etapa 16 — Search API + Files API ✅ (2026-06-30)
+
+**Branch:** `feat/etapa-16-search-files-api` → merged na `main`
+
+**Comportamentos implementados:**
+- `POST /api/search {query, domain?, enrich, limit, offset}`: LLM enriquece query via `enrichment_model`; fallback para query original se 0 resultados ou erro de LLM; log em `search_query_log` a cada chamada.
+- `GET /api/files`: paginado, filtrável por `domain` e `parse_status`, exclui soft-deleted.
+- `GET /api/files/{id}`: detalhe + `chunks: {total, done, pending, failed, deleted}`.
+- `DELETE /api/files/{id}`: soft-delete + marca chunks `index_status='deleted'`.
+- `POST /api/files/{id}/reindex`: hard-delete chunks + `parse_status='pending'`.
+- `POST /api/files/{id}/retranslate`: reseta chunks `translation_status='failed'` → `'pending'`.
+
+**Testes:** 237 passed, 1 skipped. 29 novos testes em `test_search_api.py` e `test_files_api.py`.
+
+**Estrutura adicionada:**
+```
+backend/app/routers/search.py
+backend/app/schemas/search.py
+backend/tests/test_search_api.py
+backend/tests/test_files_api.py
+```
+
+**Modificado:**
+```
+backend/app/routers/files.py   (reescrito — saiu do stub para implementação completa)
+backend/app/schemas/files.py   (adicionados FileDetailResponse, ChunksSummary)
+backend/app/main.py            (registra search_router)
+```
