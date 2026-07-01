@@ -77,6 +77,7 @@ export interface File {
   file_size_bytes: number
   parse_status: string
   parse_error: string | null
+  chunks: ChunksSummary | null
   created_at: string
   updated_at: string
 }

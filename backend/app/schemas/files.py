@@ -26,6 +26,7 @@ class FileResponse(BaseModel):
     file_size_bytes: int
     parse_status: str
     parse_error: str | None = None
+    chunks: ChunksSummary | None = None
     created_at: datetime
     updated_at: datetime
 

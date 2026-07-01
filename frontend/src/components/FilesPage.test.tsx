@@ -11,12 +11,14 @@ const mockFiles: api.File[] = [
     id: '1', path: '/data/docs/note.md', filename: 'note.md',
     domain: 'docs', file_hash: 'abc123', file_size_bytes: 1024,
     parse_status: 'done', parse_error: null,
+    chunks: { total: 10, done: 10, pending: 0, failed: 0, deleted: 0 },
     created_at: '2026-06-14T10:00:00Z', updated_at: '2026-06-14T10:00:00Z',
   },
   {
     id: '2', path: '/data/docs/report.pdf', filename: 'report.pdf',
     domain: 'docs', file_hash: 'def456', file_size_bytes: 204800,
     parse_status: 'failed', parse_error: 'Parser timeout',
+    chunks: null,
     created_at: '2026-06-14T10:01:00Z', updated_at: '2026-06-14T10:01:00Z',
   },
 ]

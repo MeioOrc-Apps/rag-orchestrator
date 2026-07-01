@@ -952,9 +952,9 @@ code.settings-example {
   padding-top: 4px;
 }
 
-/* ── Files table — 4-col layout ─────────────────── */
-.files-cols-4 {
-  grid-template-columns: 1fr 90px 90px 140px;
+/* ── Files table — 5-col layout ─────────────────── */
+.files-cols-5 {
+  grid-template-columns: 1fr 90px 130px 90px 140px;
 }
 
 /* ── Responsive — Tablet (≤ 900px) ──────────────── */
@@ -966,8 +966,8 @@ code.settings-example {
 
   .page { padding: 28px 24px; }
 
-  .files-cols-4 { grid-template-columns: 1fr 90px 100px; }
-  .files-cols-4 > *:nth-child(4) { display: none; }
+  .files-cols-5 { grid-template-columns: 1fr 90px 130px 100px; }
+  .files-cols-5 > *:nth-child(5) { display: none; }
 }
 
 /* ── Responsive — Mobile (≤ 640px) ──────────────── */
@@ -1032,9 +1032,9 @@ code.settings-example {
   .search-row { flex-direction: column; align-items: stretch; }
   .search-domain { width: 100%; }
 
-  /* Files table: path + status only */
-  .files-cols-4 { grid-template-columns: 1fr 90px; }
-  .files-cols-4 > *:nth-child(n+3) { display: none; }
+  /* Files table: path + status only on mobile */
+  .files-cols-5 { grid-template-columns: 1fr 90px; }
+  .files-cols-5 > *:nth-child(n+3) { display: none; }
 
   /* Folder form: stack */
   .form-row { flex-direction: column; }

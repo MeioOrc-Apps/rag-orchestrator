@@ -3,7 +3,10 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
+from collections import defaultdict
+
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db
@@ -16,6 +19,16 @@ from app.schemas.files import (
 )
 
 router = APIRouter(prefix="/api/files", tags=["files"])
+
+
+def _file_to_response(f: File, chunks: ChunksSummary | None = None) -> FileResponse:
+    return FileResponse(
+        id=f.id, path=f.path, filename=f.filename, domain=f.domain,
+        file_hash=f.file_hash, file_size_bytes=f.file_size_bytes,
+        parse_status=f.parse_status, parse_error=f.parse_error,
+        created_at=f.created_at, updated_at=f.updated_at,
+        chunks=chunks,
+    )
 
 
 def _get_file_or_404(file_id: uuid.UUID, db: Session) -> File:
@@ -40,8 +53,32 @@ def list_files(
         q = q.filter(File.parse_status == parse_status)
     total = q.count()
     items = q.order_by(File.created_at.desc()).offset(offset).limit(limit).all()
+    file_ids = [f.id for f in items]
+
+    # Batch-fetch chunk counts grouped by file_id + index_status
+    chunk_counts: dict[uuid.UUID, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+    if file_ids:
+        rows = (
+            db.query(Chunk.file_id, Chunk.index_status, func.count().label("cnt"))
+            .filter(Chunk.file_id.in_(file_ids))
+            .group_by(Chunk.file_id, Chunk.index_status)
+            .all()
+        )
+        for fid, status, cnt in rows:
+            chunk_counts[fid][status] = cnt
+
+    def _chunks_summary(fid: uuid.UUID) -> ChunksSummary:
+        c = chunk_counts[fid]
+        return ChunksSummary(
+            total=sum(c.values()),
+            done=c.get("done", 0),
+            pending=c.get("pending", 0),
+            failed=c.get("failed", 0),
+            deleted=c.get("deleted", 0),
+        )
+
     return PaginatedResponse(
-        items=[FileResponse.model_validate(f) for f in items],
+        items=[_file_to_response(f, _chunks_summary(f.id)) for f in items],
         total=total,
         limit=limit,
         offset=offset,
@@ -59,7 +96,7 @@ def get_file(file_id: uuid.UUID, db: Session = Depends(get_db)) -> FileDetailRes
         failed=sum(1 for c in chunks if c.index_status == "failed"),
         deleted=sum(1 for c in chunks if c.index_status == "deleted"),
     )
-    return FileDetailResponse(**FileResponse.model_validate(file_row).model_dump(), chunks=summary)
+    return FileDetailResponse(**_file_to_response(file_row).model_dump(exclude={"chunks"}), chunks=summary)
 
 
 @router.delete("/{file_id}", status_code=204)

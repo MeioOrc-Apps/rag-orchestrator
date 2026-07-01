@@ -125,12 +125,15 @@ def run_parse(db: Session, docling_base_url: str = "") -> dict:
 
     files = (
         db.query(File)
-        .filter(File.parse_status == "pending", File.deleted_at.is_(None))
+        .filter(File.parse_status.in_(["pending", "processing"]), File.deleted_at.is_(None))
         .limit(batch_size)
         .all()
     )
     processed = failed = 0
     for file_row in files:
+        file_row.parse_status = "processing"
+        file_row.updated_at = datetime.now(timezone.utc)
+        db.commit()
         try:
             text = _read_file(file_row.path, docling_base_url)
             raw_chunks = chunk_text(text, size=chunk_size, overlap=chunk_overlap)
