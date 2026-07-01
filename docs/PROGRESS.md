@@ -558,3 +558,38 @@ backend/app/main.py               (registra admin_router)
 backend/app/mcp_server.py
 backend/tests/test_mcp_server.py
 ```
+
+---
+
+## Etapa 19 — Packaging update ✅ (2026-07-01)
+
+**Branch:** `feat/etapa-19-packaging` → merged na `main`
+
+**Artefatos atualizados:**
+- `Dockerfile`: novo entrypoint `start.sh` inicia MCP server em background (porta 9700) e main API em foreground (porta 8000); `EXPOSE 9700` adicionado.
+- `start.sh`: script de inicialização — migrations + seed + uvicorn MCP + uvicorn main.
+- `docker-compose.prod.yml`: serviço `opensearch` single-node 3.0.0 com healthcheck; porta 9700 mapeada; vars LightRAG removidas; vars OpenSearch/pipeline adicionadas; volume `/DATA/AppData/rag-orchestrator/inputs`.
+- `.env.example`: remove `LIGHTRAG_*`; adiciona `OPENSEARCH_HOST`, `OPENSEARCH_INDEX_PREFIX`, intervalos de pipeline, `ENRICHMENT_MODEL`, `OLLAMA_HOST`, `MCP_PORT`, `INPUT_DIR`.
+- `.github/workflows/ci.yml`: serviço `opensearch:3.0.0` no job `test-backend`; `TEST_OPENSEARCH_HOST` configurado para rodar integration tests no CI; `LIGHTRAG_*` removidos.
+- `casaos-appstore/Apps/RagOrchestrator/docker-compose.yml`: mesmo que `docker-compose.prod.yml`; descrição e `tips/before_install` reescritos para v2.0 OpenSearch.
+
+**Testes:** 268 passed, 1 skipped (sem mudanças de código). Suite verde.
+
+**Decisões:**
+- `start.sh` usa `exec uvicorn` para main (signal pass-through correto); MCP em `&` background.
+- OpenSearch 3.0.0 (imagem estável no Docker Hub); versão real em prod é 3.7.0 conforme ambiente do usuário.
+- Volume separado `/DATA/AppData/rag-orchestrator/opensearch` para não conflitar com outras instâncias.
+
+**Estrutura adicionada:**
+```
+start.sh
+```
+
+**Modificado:**
+```
+Dockerfile
+.env.example
+docker-compose.prod.yml
+.github/workflows/ci.yml
+casaos-appstore/Apps/RagOrchestrator/docker-compose.yml  (repo separado)
+```
