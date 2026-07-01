@@ -20,7 +20,9 @@ export function AdminPage() {
     enrichment_model: '',
     translation_enabled: false,
     translation_batch_size: 5,
-    prompt_template: '',
+    prompt_template_en: '',
+    prompt_template_pt: '',
+    prompt_enrichment: '',
   })
   const [pipeForm, setPipeForm] = useState({
     chunk_size: 1000,
@@ -41,7 +43,9 @@ export function AdminPage() {
           enrichment_model: cfg.llm.enrichment_model,
           translation_enabled: cfg.llm.translation_enabled,
           translation_batch_size: cfg.llm.translation_batch_size,
-          prompt_template: cfg.llm.prompt_template,
+          prompt_template_en: cfg.llm.prompt_template_en,
+          prompt_template_pt: cfg.llm.prompt_template_pt,
+          prompt_enrichment: cfg.llm.prompt_enrichment,
         })
         setPipeForm({
           chunk_size: cfg.pipeline.chunk_size,
@@ -226,13 +230,41 @@ export function AdminPage() {
             </div>
 
             <div className="settings-field">
-              <label className="settings-label">Translation Prompt Template</label>
+              <label className="settings-label">
+                Prompt PT→EN
+                <span className="settings-hint">Translates Portuguese text to English. Use {'{text}'} as placeholder.</span>
+              </label>
               <textarea
                 className="settings-input settings-textarea"
-                value={llmForm.prompt_template}
-                onChange={e => setLlmForm(f => ({ ...f, prompt_template: e.target.value }))}
+                value={llmForm.prompt_template_en}
+                onChange={e => setLlmForm(f => ({ ...f, prompt_template_en: e.target.value }))}
                 rows={3}
-                placeholder="Use {text} as placeholder for the text to translate"
+              />
+            </div>
+
+            <div className="settings-field">
+              <label className="settings-label">
+                Prompt EN→PT
+                <span className="settings-hint">Translates English text to Portuguese (Brazil). Use {'{text}'} as placeholder.</span>
+              </label>
+              <textarea
+                className="settings-input settings-textarea"
+                value={llmForm.prompt_template_pt}
+                onChange={e => setLlmForm(f => ({ ...f, prompt_template_pt: e.target.value }))}
+                rows={3}
+              />
+            </div>
+
+            <div className="settings-field">
+              <label className="settings-label">
+                Prompt de Enriquecimento de Query
+                <span className="settings-hint">Expande a query de busca. Use {'{text}'} como placeholder.</span>
+              </label>
+              <textarea
+                className="settings-input settings-textarea"
+                value={llmForm.prompt_enrichment}
+                onChange={e => setLlmForm(f => ({ ...f, prompt_enrichment: e.target.value }))}
+                rows={3}
               />
             </div>
           </div>

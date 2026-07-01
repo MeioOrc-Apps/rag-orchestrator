@@ -108,7 +108,9 @@ def test_translation_settings_persists(db_session):
 
     ts = TranslationSettings(
         model="local:qwen2.5:7b",
-        prompt_template="Translate: {text}",
+        prompt_template_en="Translate to English: {text}",
+        prompt_template_pt="Translate to Portuguese: {text}",
+        prompt_enrichment="Expand query: {text}",
         target_language="en",
         batch_size=5,
         enabled=True,

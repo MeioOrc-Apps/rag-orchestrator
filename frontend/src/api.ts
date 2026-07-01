@@ -232,7 +232,9 @@ export interface LLMSettings {
   enrichment_model: string
   translation_enabled: boolean
   translation_batch_size: number
-  prompt_template: string
+  prompt_template_en: string
+  prompt_template_pt: string
+  prompt_enrichment: string
 }
 
 export interface PipelineSettings {
@@ -252,7 +254,9 @@ export interface LLMSettingsUpdate {
   enrichment_model?: string
   translation_enabled?: boolean
   translation_batch_size?: number
-  prompt_template?: string
+  prompt_template_en?: string
+  prompt_template_pt?: string
+  prompt_enrichment?: string
 }
 
 export interface PipelineSettingsUpdate {

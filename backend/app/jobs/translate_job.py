@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session
 from app.llm_client import LLMClient, LLMError
 from app.models import Chunk, PipelineSettings, TranslationSettings
 
-_PROMPT_PT = "Translate the following text to Portuguese (Brazil). Output only the translation, no preamble:\n\n{text}"
-_PROMPT_EN = "Translate the following text to English. Output only the translation, no preamble:\n\n{text}"
+_DEFAULT_PROMPT_PT = "Translate the following text to Portuguese (Brazil). Output only the translation, no preamble:\n\n{text}"
+_DEFAULT_PROMPT_EN = "Translate the following text to English. Output only the translation, no preamble:\n\n{text}"
 
 
 def run_translate_job() -> None:
@@ -45,6 +45,8 @@ def run_translate(
     batch_size = ts.batch_size if ts else 5
     model = ts.model if ts else ""
     enabled = ts.enabled if ts else False
+    prompt_pt = (ts.prompt_template_pt if ts else None) or _DEFAULT_PROMPT_PT
+    prompt_en = (ts.prompt_template_en if ts else None) or _DEFAULT_PROMPT_EN
 
     pending = (
         db.query(Chunk)
@@ -72,7 +74,7 @@ def run_translate(
             translated += 1
         else:
             # Translate to opposite language
-            prompt = _PROMPT_PT if is_en else _PROMPT_EN
+            prompt = prompt_pt if is_en else prompt_en
             result = _translate_with_retry(client, chunk.content_original, prompt, effective_max_retries)
 
             if result is None:

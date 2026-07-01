@@ -145,7 +145,9 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
             "enrichment_model": ts.enrichment_model if ts else "",
             "translation_enabled": ts.enabled if ts else False,
             "translation_batch_size": ts.batch_size if ts else 5,
-            "prompt_template": ts.prompt_template if ts else "",
+            "prompt_template_en": ts.prompt_template_en if ts else "",
+            "prompt_template_pt": ts.prompt_template_pt if ts else "",
+            "prompt_enrichment": ts.prompt_enrichment if ts else "",
         },
         "pipeline": {
             "chunk_size": ps.chunk_size if ps else 1000,
@@ -161,7 +163,9 @@ class LLMSettingsUpdate(BaseModel):
     enrichment_model: str | None = None
     translation_enabled: bool | None = None
     translation_batch_size: int | None = None
-    prompt_template: str | None = None
+    prompt_template_en: str | None = None
+    prompt_template_pt: str | None = None
+    prompt_enrichment: str | None = None
 
 
 class PipelineSettingsUpdate(BaseModel):
@@ -193,8 +197,12 @@ def update_settings(body: SettingsUpdate, db: Session = Depends(get_db)) -> dict
             ts.enabled = llm.translation_enabled
         if llm.translation_batch_size is not None:
             ts.batch_size = llm.translation_batch_size
-        if llm.prompt_template is not None:
-            ts.prompt_template = llm.prompt_template
+        if llm.prompt_template_en is not None:
+            ts.prompt_template_en = llm.prompt_template_en
+        if llm.prompt_template_pt is not None:
+            ts.prompt_template_pt = llm.prompt_template_pt
+        if llm.prompt_enrichment is not None:
+            ts.prompt_enrichment = llm.prompt_enrichment
         ts.updated_at = now
 
     if body.pipeline is not None:

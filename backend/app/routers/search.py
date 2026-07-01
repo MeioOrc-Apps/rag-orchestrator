@@ -46,9 +46,13 @@ def search(req: SearchRequest, db: Session = Depends(get_db)) -> SearchResponse:
     cfg = Settings()
     client = _get_os_client()
 
-    # Read enrichment model from DB
+    # Read enrichment config from DB
     ts = db.query(TranslationSettings).first()
     enrichment_model = ts.enrichment_model if ts else ""
+    enrichment_prompt = (ts.prompt_enrichment if ts else None) or (
+        "Expand this search query with synonyms and related terms for better retrieval. "
+        "Output only the expanded query, no explanation:\n\n{text}"
+    )
 
     query_enriched: str | None = None
     fallback_used = False
@@ -60,10 +64,7 @@ def search(req: SearchRequest, db: Session = Depends(get_db)) -> SearchResponse:
     if req.enrich and enrichment_model:
         try:
             llm = LLMClient(enrichment_model, ollama_host=cfg.ollama_host, openrouter_api_key=cfg.openrouter_api_key)
-            query_enriched = llm.translate(
-                req.query,
-                prompt_template="Expand this search query with synonyms and related terms for better retrieval. Output only the expanded query, no explanation:\n\n{text}",
-            )
+            query_enriched = llm.translate(req.query, prompt_template=enrichment_prompt)
             search_query = query_enriched
             enrich_attempted = True
         except LLMError:

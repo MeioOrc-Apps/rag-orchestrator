@@ -26,7 +26,9 @@ const mockSettings: api.AppSettings = {
     enrichment_model: '',
     translation_enabled: false,
     translation_batch_size: 5,
-    prompt_template: 'Translate to English:\n\n{text}',
+    prompt_template_en: 'Translate to English:\n\n{text}',
+    prompt_template_pt: 'Translate to Portuguese:\n\n{text}',
+    prompt_enrichment: 'Expand query:\n\n{text}',
   },
   pipeline: {
     chunk_size: 1000,
