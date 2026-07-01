@@ -115,6 +115,14 @@ def retry_failed(db: Session = Depends(get_db)) -> dict:
 @router.post("/reindex-all")
 def reindex_all(db: Session = Depends(get_db)) -> dict:
     now = datetime.now(timezone.utc)
+    client = _os_client()
+    domains = [
+        row[0]
+        for row in db.query(File.domain).filter(File.deleted_at.is_(None)).distinct().all()
+    ]
+    os_deleted = 0
+    for domain in domains:
+        os_deleted += client.delete_all_docs(domain)
     db.query(Chunk).delete()
     files_reset = (
         db.query(File)
@@ -122,7 +130,7 @@ def reindex_all(db: Session = Depends(get_db)) -> dict:
         .update({"parse_status": "pending", "parse_error": None, "updated_at": now})
     )
     db.commit()
-    return {"files_reset": files_reset, "chunks_deleted": True}
+    return {"files_reset": files_reset, "chunks_deleted": True, "opensearch_deleted": os_deleted}
 
 
 @router.post("/forcemerge")

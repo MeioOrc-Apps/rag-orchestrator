@@ -209,6 +209,19 @@ class OpenSearchClient:
             "index_size_mb": round(size_bytes / (1024 * 1024), 2),
         }
 
+    def delete_all_docs(self, domain: str) -> int:
+        """Delete all documents in a domain index via delete-by-query. Returns deleted count."""
+        index = self._index_name(domain)
+        with httpx.Client(timeout=self._timeout) as client:
+            resp = client.post(
+                f"{self._host}/{index}/_delete_by_query",
+                json={"query": {"match_all": {}}},
+            )
+            if resp.status_code == 404:
+                return 0
+            resp.raise_for_status()
+            return resp.json().get("deleted", 0)
+
     def forcemerge(self, domain: str, max_num_segments: int = 1) -> None:
         """Force merge index segments for a domain to optimize search performance."""
         index = self._index_name(domain)

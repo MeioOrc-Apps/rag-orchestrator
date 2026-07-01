@@ -134,20 +134,34 @@ class TestAdminRetryFailed:
 
 
 class TestAdminReindexAll:
+    def _mock_os(self):
+        mock = MagicMock()
+        mock.delete_all_docs.return_value = 0
+        return mock
+
     def test_reindex_all_returns_200(self, api_client):
-        resp = api_client.post("/api/admin/reindex-all")
+        with patch("app.routers.admin.OpenSearchClient", return_value=self._mock_os()):
+            resp = api_client.post("/api/admin/reindex-all")
         assert resp.status_code == 200
 
     def test_reindex_all_resets_all_files_to_pending(self, api_client, db_session, seeded_files):
-        api_client.post("/api/admin/reindex-all")
+        with patch("app.routers.admin.OpenSearchClient", return_value=self._mock_os()):
+            api_client.post("/api/admin/reindex-all")
         from app.models import File
         for f in db_session.query(File).filter(File.deleted_at.is_(None)).all():
             assert f.parse_status == "pending"
 
     def test_reindex_all_hard_deletes_all_chunks(self, api_client, db_session, seeded_files):
         from app.models import Chunk
-        api_client.post("/api/admin/reindex-all")
+        with patch("app.routers.admin.OpenSearchClient", return_value=self._mock_os()):
+            api_client.post("/api/admin/reindex-all")
         assert db_session.query(Chunk).count() == 0
+
+    def test_reindex_all_clears_opensearch_per_domain(self, api_client, db_session, seeded_files):
+        mock_os = self._mock_os()
+        with patch("app.routers.admin.OpenSearchClient", return_value=mock_os):
+            api_client.post("/api/admin/reindex-all")
+        mock_os.delete_all_docs.assert_called_with("docs")
 
 
 class TestAdminForceMerge:
