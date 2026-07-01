@@ -70,7 +70,7 @@ def test_migration_seeds_translation_settings(alembic_cfg, test_db_url):
         ).fetchone()
     engine.dispose()
     assert count == 1
-    assert row.model == "local:qwen2.5:7b"
+    assert row.model == ""  # migration 005 resets to "" (disabled by default)
     assert row.target_language == "en"
 
 
