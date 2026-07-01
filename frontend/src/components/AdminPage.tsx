@@ -62,7 +62,8 @@ export function AdminPage() {
 
   useEffect(() => { load() }, [load])
 
-  async function handleAction(key: string, fn: () => Promise<unknown>) {
+  async function handleAction(key: string, fn: () => Promise<unknown>, confirmMsg?: string) {
+    if (confirmMsg && !window.confirm(confirmMsg)) return
     setActing(key)
     try { await fn(); setRefreshKey(k => k + 1) } catch { /* ignore */ }
     finally { setActing(null) }
@@ -96,7 +97,7 @@ export function AdminPage() {
           </button>
           <button
             className="btn btn-secondary"
-            onClick={() => handleAction('reindex', reindexAll)}
+            onClick={() => handleAction('reindex', reindexAll, 'This will delete ALL chunks and documents from OpenSearch, then re-parse every file from scratch. Continue?')}
             disabled={!!acting}
           >
             Reindex All

@@ -108,7 +108,8 @@ describe('AdminPage', () => {
     })
   })
 
-  it('reindex-all button calls reindexAll', async () => {
+  it('reindex-all button calls reindexAll after confirmation', async () => {
+    vi.stubGlobal('confirm', () => true)
     const user = userEvent.setup()
     render(<AdminPage />)
     await waitFor(() => screen.getByText('10'))
@@ -118,6 +119,7 @@ describe('AdminPage', () => {
     await waitFor(() => {
       expect(api.reindexAll).toHaveBeenCalledOnce()
     })
+    vi.unstubAllGlobals()
   })
 
   it('forcemerge button calls forcemerge', async () => {
