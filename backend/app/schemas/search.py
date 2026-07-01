@@ -23,7 +23,7 @@ class SearchHit(BaseModel):
     content_en: str
     content_pt: str
     score: float
-    highlights: dict[str, Any] = {}
+    highlight: str = ""
 
 
 class SearchResponse(BaseModel):

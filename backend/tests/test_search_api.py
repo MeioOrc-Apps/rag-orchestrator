@@ -6,27 +6,25 @@ pytestmark = pytest.mark.integration
 
 
 def _os_hit(chunk_id: str, score: float = 1.0) -> dict:
+    """Processed hit as returned by OpenSearchClient.search()."""
     return {
-        "_id": f"os-{chunk_id}",
-        "_score": score,
-        "_source": {
-            "chunk_id": chunk_id,
-            "content_en": "Some content",
-            "content_pt": "Algum conteúdo",
-            "domain": "docs",
-            "file_id": "file-1",
-            "chunk_index": 0,
-        },
-        "highlight": {},
+        "chunk_id": chunk_id,
+        "file_id": "file-1",
+        "domain": "docs",
+        "chunk_index": 0,
+        "source_language": "en",
+        "content_en": "Some content",
+        "content_pt": "Algum conteúdo",
+        "highlight": "",
+        "score": score,
     }
 
 
 def _os_response(hits: list, total: int = None) -> dict:
+    """Processed response as returned by OpenSearchClient.search()."""
     return {
-        "hits": {
-            "total": {"value": total if total is not None else len(hits)},
-            "hits": hits,
-        }
+        "total": total if total is not None else len(hits),
+        "hits": hits,
     }
 
 

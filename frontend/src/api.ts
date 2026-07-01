@@ -154,8 +154,8 @@ export interface SearchHit {
   source_language: string
   content_en: string
   content_pt: string
+  highlight: string
   score: number
-  highlights: Record<string, unknown>
 }
 
 export interface SearchResponse {

@@ -176,13 +176,15 @@ class OpenSearchClient:
                 highlight_parts.extend(field_snippets)
             hits.append(
                 {
-                    "chunk_id": source.get("chunk_id"),
-                    "file_id": source.get("file_id"),
-                    "filename": source.get("filename"),
-                    "domain": source.get("domain"),
-                    "chunk_index": source.get("chunk_index"),
+                    "chunk_id": source.get("chunk_id", ""),
+                    "file_id": source.get("file_id", ""),
+                    "domain": source.get("domain", ""),
+                    "chunk_index": source.get("chunk_index", 0),
+                    "source_language": source.get("source_language", ""),
+                    "content_en": source.get("content_en", ""),
+                    "content_pt": source.get("content_pt", ""),
                     "highlight": " … ".join(highlight_parts),
-                    "score": h.get("_score"),
+                    "score": h.get("_score", 0.0),
                 }
             )
         return {

@@ -21,21 +21,20 @@ def _get_os_client() -> OpenSearchClient:
 
 
 def _hits_from_response(data: dict) -> tuple[list[SearchHit], int]:
-    raw_hits = data.get("hits", {}).get("hits", [])
-    total = data.get("hits", {}).get("total", {}).get("value", 0)
+    raw_hits = data.get("hits", [])
+    total = data.get("total", 0)
     hits = []
     for h in raw_hits:
-        src = h.get("_source", {})
         hits.append(SearchHit(
-            chunk_id=src.get("chunk_id", ""),
-            file_id=src.get("file_id", ""),
-            domain=src.get("domain", ""),
-            chunk_index=src.get("chunk_index", 0),
-            source_language=src.get("source_language", ""),
-            content_en=src.get("content_en", ""),
-            content_pt=src.get("content_pt", ""),
-            score=h.get("_score", 0.0),
-            highlights=h.get("highlight", {}),
+            chunk_id=h.get("chunk_id", ""),
+            file_id=h.get("file_id", ""),
+            domain=h.get("domain", ""),
+            chunk_index=h.get("chunk_index", 0),
+            source_language=h.get("source_language", ""),
+            content_en=h.get("content_en", ""),
+            content_pt=h.get("content_pt", ""),
+            score=h.get("score", 0.0),
+            highlight=h.get("highlight", ""),
         ))
     return hits, total
 

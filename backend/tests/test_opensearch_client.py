@@ -161,9 +161,11 @@ def test_search_returns_hits_with_highlights_and_scores():
                     "_source": {
                         "chunk_id": "uuid-1",
                         "file_id": "fid-1",
-                        "filename": "manual.md",
                         "domain": "rpg",
                         "chunk_index": 0,
+                        "source_language": "en",
+                        "content_en": "sword attack maneuver",
+                        "content_pt": "",
                     },
                     "highlight": {"content_en": ["<em>sword</em> attack"]},
                 }
