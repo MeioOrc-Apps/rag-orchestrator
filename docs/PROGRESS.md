@@ -426,3 +426,28 @@ backend/tests/test_scan_job.py
 backend/app/jobs/parse_job.py
 backend/tests/test_parse_job.py
 ```
+
+---
+
+## Etapa 14 — translate_job ✅ (2026-06-30)
+
+**Branch:** `feat/etapa-14-translate-job` → merged na `main`
+
+**Comportamentos implementados:**
+- `LLMClient('local:model')`: backend `ollama`, chama `POST {OLLAMA_HOST}/api/generate`, retorna `response`. Erro HTTP → `LLMError`.
+- `LLMClient('openrouter:model')`: backend `openrouter`, chama `POST https://openrouter.ai/api/v1/chat/completions` com `Authorization: Bearer`, retorna `choices[0].message.content`. Erro HTTP → `LLMError`.
+- Prefixo desconhecido → `ValueError`.
+- `run_translate(db)`: busca `TranslationSettings` enabled; processa `not_needed` (copia `content_original` → `content_en`, sem LLM) e `pending` (chama LLM) em lotes de `batch_size`.
+- Sucesso: `content_en` set, `translation_status='done'`, `translation_model` e `translated_at` registrados.
+- Falha: retenta até `MAX_TRANSLATION_RETRIES` (ou `max_retries` param); após max → `translation_status='failed'`, `translation_error` set.
+- Chunks já `done` ignorados; `LLMClient` não instanciado se não há chunks `pending`.
+
+**Testes:** 193 passed, 1 skipped. 20 novos testes em `test_llm_client.py` (unit, mocked httpx) e `test_translate_job.py` (integration, mocked LLMClient).
+
+**Estrutura adicionada:**
+```
+backend/app/llm_client.py
+backend/app/jobs/translate_job.py
+backend/tests/test_llm_client.py
+backend/tests/test_translate_job.py
+```
