@@ -8,6 +8,26 @@ from app.models import Chunk
 from app.opensearch_client import OpenSearchClient
 
 
+def run_delete_job() -> None:
+    """Standalone scheduler wrapper — manages its own DB session."""
+    import logging
+    from app.config import Settings
+    from app.database import get_engine, get_session_factory
+
+    logger = logging.getLogger(__name__)
+    settings = Settings()
+    engine = get_engine(settings.database_url)
+    factory = get_session_factory(engine)
+    db = factory()
+    try:
+        run_delete(db)
+    except Exception as exc:
+        logger.error("Scheduled delete job failed: %s", exc)
+    finally:
+        db.close()
+        engine.dispose()
+
+
 def run_delete(db: Session) -> dict:
     from app.config import Settings
     cfg = Settings()

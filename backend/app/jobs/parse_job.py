@@ -97,6 +97,26 @@ def _read_file(path: str) -> str:
     raise ValueError(f"Unknown route kind: {kind}")
 
 
+def run_parse_job() -> None:
+    """Standalone scheduler wrapper — manages its own DB session."""
+    import logging
+    from app.config import Settings
+    from app.database import get_engine, get_session_factory
+
+    logger = logging.getLogger(__name__)
+    settings = Settings()
+    engine = get_engine(settings.database_url)
+    factory = get_session_factory(engine)
+    db = factory()
+    try:
+        run_parse(db)
+    except Exception as exc:
+        logger.error("Scheduled parse job failed: %s", exc)
+    finally:
+        db.close()
+        engine.dispose()
+
+
 def run_parse(db: Session) -> dict:
     files = (
         db.query(File)
