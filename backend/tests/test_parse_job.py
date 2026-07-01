@@ -217,7 +217,7 @@ class TestParseJobInsertsChunks:
 
 
 class TestTranslationStatusOnInsert:
-    def test_english_chunks_get_not_needed(self, db_session, file_in_db):
+    def test_english_chunks_get_pending(self, db_session, file_in_db):
         from app.jobs.parse_job import run_parse
         from app.models import Chunk
 
@@ -233,7 +233,7 @@ class TestTranslationStatusOnInsert:
         chunks = db_session.query(Chunk).filter(Chunk.file_id == file_row.id).all()
         assert len(chunks) >= 1
         for chunk in chunks:
-            assert chunk.translation_status == "not_needed"
+            assert chunk.translation_status == "pending"
             assert chunk.source_language == "en"
 
     def test_portuguese_chunks_get_pending(self, db_session, file_in_db):

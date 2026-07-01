@@ -7,6 +7,9 @@ from sqlalchemy.orm import Session
 from app.llm_client import LLMClient, LLMError
 from app.models import Chunk, PipelineSettings, TranslationSettings
 
+_PROMPT_PT = "Translate the following text to Portuguese (Brazil). Output only the translation, no preamble:\n\n{text}"
+_PROMPT_EN = "Translate the following text to English. Output only the translation, no preamble:\n\n{text}"
+
 
 def run_translate_job() -> None:
     """Standalone scheduler wrapper — manages its own DB session."""
@@ -34,72 +37,71 @@ def run_translate(
     openrouter_api_key: str = "",
     max_retries: int | None = None,
 ) -> dict:
-    ts = db.query(TranslationSettings).filter(TranslationSettings.enabled.is_(True)).first()
-    if ts is None or not ts.model:
-        # Translation disabled or no model configured — still handle not_needed chunks
-        return _copy_not_needed(db)
-
+    ts = db.query(TranslationSettings).first()
     pipeline_cfg = db.query(PipelineSettings).first()
     effective_max_retries = max_retries if max_retries is not None else (
         pipeline_cfg.max_translation_retries if pipeline_cfg else 3
     )
+    batch_size = ts.batch_size if ts else 5
+    model = ts.model if ts else ""
+    enabled = ts.enabled if ts else False
 
-    # Handle not_needed: copy original → content_en, mark done (no LLM)
-    result = _copy_not_needed(db, batch_size=ts.batch_size)
-    skipped = result["skipped"]
-
-    # Handle pending: translate via LLM
     pending = (
         db.query(Chunk)
         .filter(Chunk.translation_status == "pending")
-        .limit(ts.batch_size)
-        .all()
-    )
-    translated = failed = 0
-    if pending:
-        client = LLMClient(ts.model, ollama_host=ollama_host, openrouter_api_key=openrouter_api_key)
-    for chunk in pending:
-        res = _translate_with_retry(client, chunk.content_original, ts, effective_max_retries)
-        if res is None:
-            chunk.translation_status = "failed"
-            chunk.translation_error = f"Failed after {effective_max_retries} retries"
-            chunk.updated_at = datetime.now(timezone.utc)
-            failed += 1
-        else:
-            chunk.content_en = res
-            chunk.translation_status = "done"
-            chunk.translation_model = ts.model
-            chunk.translated_at = datetime.now(timezone.utc)
-            chunk.translation_error = None
-            chunk.updated_at = datetime.now(timezone.utc)
-            translated += 1
-        db.commit()
-
-    return {"translated": translated, "failed": failed, "skipped": skipped}
-
-
-def _copy_not_needed(db: Session, batch_size: int = 50) -> dict:
-    not_needed = (
-        db.query(Chunk)
-        .filter(Chunk.translation_status == "not_needed", Chunk.content_en.is_(None))
         .limit(batch_size)
         .all()
     )
-    for chunk in not_needed:
-        chunk.content_en = chunk.content_original
-        chunk.translation_status = "done"
-        chunk.updated_at = datetime.now(timezone.utc)
-    if not_needed:
+
+    translated = failed = 0
+    client = LLMClient(model, ollama_host=ollama_host, openrouter_api_key=openrouter_api_key) if (enabled and model) else None
+
+    for chunk in pending:
+        is_en = chunk.source_language == "en"
+
+        if client is None:
+            # No translation: copy original to native field, leave other empty
+            if is_en:
+                chunk.content_en = chunk.content_original
+                chunk.content_pt = ""
+            else:
+                chunk.content_pt = chunk.content_original
+                chunk.content_en = ""
+            chunk.translation_status = "done"
+            chunk.updated_at = datetime.now(timezone.utc)
+            translated += 1
+        else:
+            # Translate to opposite language
+            prompt = _PROMPT_PT if is_en else _PROMPT_EN
+            result = _translate_with_retry(client, chunk.content_original, prompt, effective_max_retries)
+
+            if result is None:
+                chunk.translation_status = "failed"
+                chunk.translation_error = f"Failed after {effective_max_retries} retries"
+                chunk.updated_at = datetime.now(timezone.utc)
+                failed += 1
+            else:
+                if is_en:
+                    chunk.content_en = chunk.content_original
+                    chunk.content_pt = result
+                else:
+                    chunk.content_pt = chunk.content_original
+                    chunk.content_en = result
+                chunk.translation_status = "done"
+                chunk.translation_model = model
+                chunk.translated_at = datetime.now(timezone.utc)
+                chunk.translation_error = None
+                chunk.updated_at = datetime.now(timezone.utc)
+                translated += 1
         db.commit()
-    return {"skipped": len(not_needed)}
+
+    return {"translated": translated, "failed": failed}
 
 
-def _translate_with_retry(
-    client: LLMClient, text: str, settings: TranslationSettings, max_retries: int
-) -> str | None:
+def _translate_with_retry(client: LLMClient, text: str, prompt: str, max_retries: int) -> str | None:
     for _ in range(max_retries):
         try:
-            return client.translate(text, prompt_template=settings.prompt_template)
+            return client.translate(text, prompt_template=prompt)
         except LLMError:
             pass
     return None

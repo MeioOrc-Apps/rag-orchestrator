@@ -24,7 +24,7 @@ def indexable_chunk(db_session, tmp_path):
     chunk = Chunk(
         file_id=file_row.id, chunk_index=0,
         content_original="Hello world", source_language="en",
-        content_en="Hello world",
+        content_en="Hello world", content_pt="",
         char_count=11,
         translation_status="done",
         index_status="pending",
@@ -102,6 +102,7 @@ class TestIndexJobSuccess:
         assert domain_arg == "docs"
         assert len(docs_arg) == 1
         assert docs_arg[0]["content_en"] == "Hello world"
+        assert docs_arg[0]["content_pt"] == ""
         assert docs_arg[0]["chunk_id"] == str(chunk.id)
 
 

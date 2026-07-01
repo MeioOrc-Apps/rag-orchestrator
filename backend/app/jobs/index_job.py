@@ -40,7 +40,7 @@ def run_index(db: Session, batch_size: int = _BATCH_SIZE) -> dict:
         db.query(Chunk)
         .join(Chunk.file)
         .filter(
-            Chunk.translation_status.in_(("done", "not_needed")),
+            Chunk.translation_status == "done",
             Chunk.index_status == "pending",
         )
         .limit(batch_size)
@@ -91,7 +91,7 @@ def _chunk_to_doc(chunk: Chunk) -> dict:
         "domain": chunk.file.domain,
         "chunk_index": chunk.chunk_index,
         "source_language": chunk.source_language,
-        "content_pt": chunk.content_original,
+        "content_pt": chunk.content_pt or "",
         "content_en": chunk.content_en or "",
         "char_count": chunk.char_count,
     }

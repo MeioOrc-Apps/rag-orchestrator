@@ -135,7 +135,7 @@ def run_parse(db: Session, docling_base_url: str = "") -> dict:
             text = _read_file(file_row.path, docling_base_url)
             raw_chunks = chunk_text(text, size=chunk_size, overlap=chunk_overlap)
             lang = detect_language(text)
-            translation_status = "not_needed" if lang == "en" else "pending"
+            translation_status = "pending"
             for idx, content in enumerate(raw_chunks):
                 chunk = Chunk(
                     file_id=file_row.id,
