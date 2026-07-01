@@ -30,6 +30,20 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+      opensearch:
+        image: opensearchproject/opensearch:3.0.0
+        env:
+          discovery.type: single-node
+          DISABLE_SECURITY_PLUGIN: "true"
+          OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
+        ports:
+          - 9200:9200
+        options: >-
+          --health-cmd "curl -sf http://localhost:9200/_cluster/health | grep -qv '\"status\":\"red\"'"
+          --health-interval 15s
+          --health-timeout 10s
+          --health-retries 10
+
     steps:
       - uses: actions/checkout@v4
 
@@ -50,12 +64,12 @@ jobs:
           DATABASE_URL: postgresql+psycopg://orchestrator:orchestrator@localhost:5432/orchestrator
           TEST_DATABASE_URL: postgresql+psycopg://orchestrator:orchestrator@localhost:5432/orchestrator
           DOCLING_BASE_URL: http://localhost:5001
-          LIGHTRAG_BASE_URL: http://localhost:9621
-          LIGHTRAG_USERNAME: admin
-          LIGHTRAG_PASSWORD: admin123
-          LIGHTRAG_INPUT_DIR: /tmp/lightrag-inputs
+          OPENSEARCH_HOST: http://localhost:9200
+          OPENSEARCH_INDEX_PREFIX: rag
+          TEST_OPENSEARCH_HOST: http://localhost:9200
           DEFAULT_OWNER_USERNAME: sergio
-          SCAN_INTERVAL_MINUTES: "30"
+          INPUT_DIR: /tmp/rag-inputs
+          SCAN_INTERVAL_MINUTES: "15"
         run: pytest tests/ -x -q -m "not e2e"
 
   test-frontend:

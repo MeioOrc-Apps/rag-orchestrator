@@ -22,26 +22,54 @@ services:
       timeout: 5s
       retries: 5
 
+  opensearch:
+    image: opensearchproject/opensearch:3.0.0
+    restart: unless-stopped
+    networks:
+      - rag-network
+    environment:
+      - discovery.type=single-node
+      - DISABLE_SECURITY_PLUGIN=true
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+    volumes:
+      - /DATA/AppData/rag-orchestrator/opensearch:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health | grep -qv '\"status\":\"red\"'"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
   app:
-    image: sergiosjs/rag-orchestrator:1.1.0
+    image: ghcr.io/meiorc-apps/rag-orchestrator:latest
     restart: unless-stopped
     networks:
       - rag-network
     depends_on:
       db:
         condition: service_healthy
+      opensearch:
+        condition: service_healthy
     ports:
       - "8080:8000"
+      - "9700:9700"
     environment:
       DATABASE_URL: postgresql+psycopg://orchestrator:orchestrator@db:5432/orchestrator
       DOCLING_BASE_URL: http://host.docker.internal:5001
-      LIGHTRAG_BASE_URL: http://host.docker.internal:9621
-      LIGHTRAG_USERNAME: admin
-      LIGHTRAG_PASSWORD: admin123
-      LIGHTRAG_INPUT_DIR: /data/inputs
+      OPENSEARCH_HOST: http://opensearch:9200
+      OPENSEARCH_INDEX_PREFIX: rag
       DEFAULT_OWNER_USERNAME: default
-      SCAN_INTERVAL_MINUTES: "30"
+      INPUT_DIR: /data/inputs
+      SCAN_INTERVAL_MINUTES: "15"
+      PARSE_INTERVAL_MINUTES: "5"
+      TRANSLATE_INTERVAL_MINUTES: "5"
+      INDEX_INTERVAL_MINUTES: "5"
+      MAX_TRANSLATION_RETRIES: "3"
+      CHUNK_SIZE: "1000"
+      CHUNK_OVERLAP: "100"
+      ENRICHMENT_MODEL: local:qwen2.5:7b
+      OLLAMA_HOST: http://host.docker.internal:11434
+      MCP_PORT: "9700"
     volumes:
-      - /DATA/AppData/lightrag/inputs:/data/inputs
+      - /DATA/AppData/rag-orchestrator/inputs:/data/inputs
     extra_hosts:
       - "host.docker.internal:host-gateway"
