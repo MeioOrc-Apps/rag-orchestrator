@@ -26,8 +26,8 @@ export function AdminPage() {
     prompt_enrichment: '',
   })
   const [pipeForm, setPipeForm] = useState({
-    chunk_size: 1000,
-    chunk_overlap: 100,
+    chunk_size: 300,
+    chunk_overlap: 30,
     parse_batch_size: 20,
     max_translation_retries: 3,
   })
@@ -299,7 +299,7 @@ export function AdminPage() {
             <div className="settings-row-2">
               <div className="settings-field">
                 <label className="settings-label">
-                  Chunk Size (chars)
+                  Chunk Size (words)
                   <span className="settings-hint">Chars per chunk</span>
                 </label>
                 <input
@@ -312,7 +312,7 @@ export function AdminPage() {
               </div>
               <div className="settings-field">
                 <label className="settings-label">
-                  Chunk Overlap (chars)
+                  Chunk Overlap (words)
                   <span className="settings-hint">Overlap between consecutive chunks</span>
                 </label>
                 <input

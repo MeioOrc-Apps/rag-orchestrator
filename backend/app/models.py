@@ -112,8 +112,8 @@ class PipelineSettings(Base):
     __tablename__ = "pipeline_settings"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    chunk_size: Mapped[int] = mapped_column(Integer, nullable=False, default=1000)
-    chunk_overlap: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
+    chunk_size: Mapped[int] = mapped_column(Integer, nullable=False, default=300)
+    chunk_overlap: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
     parse_batch_size: Mapped[int] = mapped_column(Integer, nullable=False, default=20)
     max_translation_retries: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)

@@ -66,64 +66,53 @@ class TestChunkText:
         from app.jobs.parse_job import chunk_text
 
         text = "Hello world. This is a short document that is long enough to not be discarded."
-        chunks = chunk_text(text, size=1000, overlap=100)
+        chunks = chunk_text(text, size=300, overlap=30)
         assert len(chunks) == 1
         assert chunks[0] == text.strip()
 
     def test_long_text_splits_into_multiple_chunks(self):
         from app.jobs.parse_job import chunk_text
 
-        text = ("word " * 300).strip()  # ~1500 chars
-        chunks = chunk_text(text, size=1000, overlap=100)
+        text = ("word " * 600).strip()  # 600 words
+        chunks = chunk_text(text, size=200, overlap=20)
         assert len(chunks) > 1
 
-    def test_chunks_respect_max_size(self):
+    def test_chunks_respect_max_word_count(self):
         from app.jobs.parse_job import chunk_text
 
-        text = ("word " * 300).strip()
-        chunks = chunk_text(text, size=500, overlap=50)
+        text = ("word " * 600).strip()
+        chunks = chunk_text(text, size=100, overlap=10)
         for chunk in chunks:
-            assert len(chunk) <= 600  # allow small overshoot at word boundary
+            assert len(chunk.split()) <= 100
 
-    def test_chunks_have_overlap(self):
+    def test_chunks_have_word_overlap(self):
         from app.jobs.parse_job import chunk_text
 
-        # Build text with paragraphs so we can detect double-newline splits
-        para = "This is a paragraph with enough words to fill the chunk size easily. " * 5
-        text = (para + "\n\n") * 8
-        chunks = chunk_text(text, size=300, overlap=50)
+        words = [f"word{i}" for i in range(100)]
+        text = " ".join(words)
+        chunks = chunk_text(text, size=30, overlap=10)
         if len(chunks) > 1:
-            # The end of chunk N should appear at the start of chunk N+1
-            end_of_first = chunks[0][-40:].strip()
-            start_of_second = chunks[1][:100]
-            assert end_of_first in start_of_second
-
-    def test_prefers_double_newline_split(self):
-        from app.jobs.parse_job import chunk_text
-
-        para_a = "A " * 250  # ~500 chars
-        para_b = "B " * 250
-        text = para_a.strip() + "\n\n" + para_b.strip()
-        chunks = chunk_text(text, size=600, overlap=0)
-        # Split should happen at \n\n, so each chunk starts with its letter
-        assert all(c.strip() for c in chunks)
+            last_words_of_first = chunks[0].split()[-10:]
+            first_words_of_second = chunks[1].split()[:10]
+            assert last_words_of_first == first_words_of_second
 
     def test_discards_chunks_shorter_than_50_chars(self):
         from app.jobs.parse_job import chunk_text
 
-        text = "Short.\n\n" + ("word " * 300)
-        chunks = chunk_text(text, size=1000, overlap=0)
+        # "ab " * 3 = "ab ab ab" = 8 chars < 50 → discarded
+        filler = ("ab " * 3).strip()  # 3 words, < 50 chars
+        body = ("longword " * 200).strip()
+        chunks = chunk_text(filler + " " + body, size=3, overlap=0)
         for chunk in chunks:
             assert len(chunk) >= 50
 
-    def test_never_splits_mid_word(self):
+    def test_overlap_equal_to_size_does_not_hang(self):
         from app.jobs.parse_job import chunk_text
 
-        text = ("longwordthatshouldbekepttogether " * 50).strip()
-        chunks = chunk_text(text, size=200, overlap=0)
-        for chunk in chunks:
-            # No word should be cut (every token is the same word)
-            assert not chunk.endswith("longwordthatshouldbeke")
+        # "longerword " × 20 → 5-word window = 54 chars ≥ 50 → not discarded
+        text = ("longerword " * 20).strip()
+        chunks = chunk_text(text, size=5, overlap=5)
+        assert len(chunks) >= 1
 
 
 # ---------------------------------------------------------------------------
@@ -217,7 +206,7 @@ class TestParseJobInsertsChunks:
 
 
 class TestTranslationStatusOnInsert:
-    def test_english_chunks_get_pending(self, db_session, file_in_db):
+    def test_english_chunks_get_source_language_en(self, db_session, file_in_db):
         from app.jobs.parse_job import run_parse
         from app.models import Chunk
 
@@ -236,7 +225,7 @@ class TestTranslationStatusOnInsert:
             assert chunk.translation_status == "pending"
             assert chunk.source_language == "en"
 
-    def test_portuguese_chunks_get_pending(self, db_session, file_in_db):
+    def test_portuguese_chunks_get_source_language_pt(self, db_session, file_in_db):
         from app.jobs.parse_job import run_parse
         from app.models import Chunk
 
@@ -254,6 +243,38 @@ class TestTranslationStatusOnInsert:
         for chunk in chunks:
             assert chunk.translation_status == "pending"
             assert chunk.source_language == "pt"
+
+    def test_each_chunk_gets_its_own_language_detection(self, db_session, file_in_db):
+        from app.jobs.parse_job import run_parse
+        from app.models import Chunk, PipelineSettings
+
+        # Use a small chunk size (50 words) so the two language sections split cleanly
+        ps = db_session.query(PipelineSettings).first()
+        if ps:
+            ps.chunk_size = 50
+            ps.chunk_overlap = 0
+        else:
+            db_session.add(PipelineSettings(chunk_size=50, chunk_overlap=0, parse_batch_size=20))
+        db_session.commit()
+
+        file_row, fpath = file_in_db
+        en_section = (
+            "The quick brown fox jumps over the lazy dog. "
+            "Natural language processing helps machines understand human text. " * 10
+        )  # ~130 words → 3 chunks of 50
+        pt_section = (
+            "O rato roeu a roupa do rei de Roma. "
+            "O processamento de linguagem natural ajuda as máquinas a entender textos. " * 10
+        )  # ~110 words → 3 chunks of 50
+        fpath.write_text(en_section + "\n\n" + pt_section)
+
+        run_parse(db_session)
+
+        chunks = db_session.query(Chunk).filter(Chunk.file_id == file_row.id).all()
+        assert len(chunks) >= 4
+        langs = {c.source_language for c in chunks}
+        assert "en" in langs
+        assert "pt" in langs
 
 
 class TestParseJobErrorHandling:

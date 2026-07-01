@@ -155,8 +155,8 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
             "prompt_enrichment": ts.prompt_enrichment if ts else "",
         },
         "pipeline": {
-            "chunk_size": ps.chunk_size if ps else 1000,
-            "chunk_overlap": ps.chunk_overlap if ps else 100,
+            "chunk_size": ps.chunk_size if ps else 300,
+            "chunk_overlap": ps.chunk_overlap if ps else 30,
             "parse_batch_size": ps.parse_batch_size if ps else 20,
             "max_translation_retries": ps.max_translation_retries if ps else 3,
         },

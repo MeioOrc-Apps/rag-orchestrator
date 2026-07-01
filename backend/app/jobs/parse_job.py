@@ -33,47 +33,21 @@ def detect_language(text: str) -> str:
         return "unknown"
 
 
-def chunk_text(text: str, size: int = 1000, overlap: int = 100) -> list[str]:
+def chunk_text(text: str, size: int = 300, overlap: int = 30) -> list[str]:
+    """Split text into chunks of `size` words with `overlap` word overlap."""
+    words = text.split()
     chunks: list[str] = []
+    step = max(1, size - overlap)
     start = 0
-    while start < len(text):
-        end = start + size
-        if end >= len(text):
-            piece = text[start:].strip()
-            if len(piece) >= _MIN_CHUNK_CHARS:
-                chunks.append(piece)
-            break
-        # prefer splitting at double newline
-        split_pos = _find_split(text, start, end, "\n\n")
-        if split_pos is None:
-            # fall back to sentence boundary
-            split_pos = _find_split(text, start, end, ".")
-        if split_pos is None:
-            # fall back to word boundary
-            split_pos = _rfind_space(text, start, end)
-        if split_pos is None:
-            split_pos = end
-
-        piece = text[start:split_pos].strip()
+    while start < len(words):
+        end = min(start + size, len(words))
+        piece = " ".join(words[start:end]).strip()
         if len(piece) >= _MIN_CHUNK_CHARS:
             chunks.append(piece)
-        # move start back by overlap
-        start = max(start + 1, split_pos - overlap)
+        if end >= len(words):
+            break
+        start += step
     return chunks
-
-
-def _find_split(text: str, start: int, end: int, sep: str) -> int | None:
-    pos = text.rfind(sep, start, end)
-    if pos == -1 or pos <= start:
-        return None
-    return pos + len(sep)
-
-
-def _rfind_space(text: str, start: int, end: int) -> int | None:
-    pos = text.rfind(" ", start, end)
-    if pos == -1 or pos <= start:
-        return None
-    return pos + 1
 
 
 def _read_file(path: str, docling_base_url: str) -> str:
@@ -119,8 +93,8 @@ def run_parse_job() -> None:
 
 def run_parse(db: Session, docling_base_url: str = "") -> dict:
     pipeline_cfg = db.query(PipelineSettings).first()
-    chunk_size = pipeline_cfg.chunk_size if pipeline_cfg else 1000
-    chunk_overlap = pipeline_cfg.chunk_overlap if pipeline_cfg else 100
+    chunk_size = pipeline_cfg.chunk_size if pipeline_cfg else 300
+    chunk_overlap = pipeline_cfg.chunk_overlap if pipeline_cfg else 30
     batch_size = pipeline_cfg.parse_batch_size if pipeline_cfg else 20
 
     files = (
@@ -137,16 +111,15 @@ def run_parse(db: Session, docling_base_url: str = "") -> dict:
         try:
             text = _read_file(file_row.path, docling_base_url)
             raw_chunks = chunk_text(text, size=chunk_size, overlap=chunk_overlap)
-            lang = detect_language(text)
-            translation_status = "pending"
             for idx, content in enumerate(raw_chunks):
+                lang = detect_language(content)
                 chunk = Chunk(
                     file_id=file_row.id,
                     chunk_index=idx,
                     content_original=content,
                     source_language=lang,
                     char_count=len(content),
-                    translation_status=translation_status,
+                    translation_status="pending",
                 )
                 db.add(chunk)
             file_row.parse_status = "done"
