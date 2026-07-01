@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from typing import NamedTuple
+import uuid
 
 from sqlalchemy.orm import Session
 
 from app.llm_client import LLMClient, LLMError
 from app.models import Chunk, PipelineSettings, TranslationSettings
+
+logger = logging.getLogger(__name__)
 
 _DEFAULT_PROMPT_PT = "Translate the following text to Portuguese (Brazil). Output only the translation, no preamble:\n\n{text}"
 _DEFAULT_PROMPT_EN = "Translate the following text to English. Output only the translation, no preamble:\n\n{text}"
@@ -15,28 +19,40 @@ _DEFAULT_PROMPT_EN = "Translate the following text to English. Output only the t
 _MAX_WORKERS = 10
 
 
-class _TranslateResult(NamedTuple):
-    chunk_id: int
+class _ChunkData(NamedTuple):
+    chunk_id: uuid.UUID
     is_en: bool
-    text: str | None  # None = failed
+    original: str
+    prompt: str
+
+
+class _TranslateResult(NamedTuple):
+    chunk_id: uuid.UUID
+    is_en: bool
+    translation: str | None  # None = failed
+    original: str
     error: str | None
 
 
 def run_translate_job() -> None:
     """Standalone scheduler wrapper — manages its own DB session."""
-    import logging
     from app.config import Settings
     from app.database import get_engine, get_session_factory
 
-    logger = logging.getLogger(__name__)
     settings = Settings()
     engine = get_engine(settings.database_url)
     factory = get_session_factory(engine)
     db = factory()
     try:
-        run_translate(db, ollama_host=settings.ollama_host, openrouter_api_key=settings.openrouter_api_key, max_workers=settings.translate_workers)
+        result = run_translate(
+            db,
+            ollama_host=settings.ollama_host,
+            openrouter_api_key=settings.openrouter_api_key,
+            max_workers=settings.translate_workers,
+        )
+        logger.info("translate_job completed: translated=%d failed=%d", result["translated"], result["failed"])
     except Exception as exc:
-        logger.error("Scheduled translate job failed: %s", exc)
+        logger.error("translate_job failed: %s", exc, exc_info=True)
     finally:
         db.close()
         engine.dispose()
@@ -71,68 +87,84 @@ def run_translate(
     if not pending:
         return {"translated": 0, "failed": 0}
 
+    # Extract all needed data into plain Python types, then close the read
+    # transaction. This prevents idle-in-transaction timeouts while HTTP
+    # calls are in flight (which can take 30-60s for a full batch).
+    jobs: list[_ChunkData] = [
+        _ChunkData(
+            chunk_id=c.id,
+            is_en=c.source_language == "en",
+            original=c.content_original,
+            prompt=prompt_pt if c.source_language == "en" else prompt_en,
+        )
+        for c in pending
+    ]
+    db.commit()  # close read transaction; connections return to pool
+
     client = LLMClient(model, ollama_host=ollama_host, openrouter_api_key=openrouter_api_key) if (enabled and model) else None
     now = datetime.now(timezone.utc)
     translated = failed = 0
 
     if client is None:
         # No LLM — copy original to native field, leave other empty
-        for chunk in pending:
-            is_en = chunk.source_language == "en"
-            if is_en:
-                chunk.content_en = chunk.content_original
+        for j in jobs:
+            chunk = db.get(Chunk, j.chunk_id)
+            if chunk is None:
+                continue
+            if j.is_en:
+                chunk.content_en = j.original
                 chunk.content_pt = ""
             else:
-                chunk.content_pt = chunk.content_original
+                chunk.content_pt = j.original
                 chunk.content_en = ""
             chunk.translation_status = "done"
             chunk.updated_at = now
             translated += 1
         db.commit()
+        logger.info("translate_job (no-LLM): copied %d chunks", translated)
         return {"translated": translated, "failed": failed}
 
-    # Parallel LLM calls — DB access only in main thread
-    chunk_map = {chunk.id: chunk for chunk in pending}
-    jobs: list[tuple[int, bool, str, str]] = []
-    for chunk in pending:
-        is_en = chunk.source_language == "en"
-        prompt = prompt_pt if is_en else prompt_en
-        jobs.append((chunk.id, is_en, chunk.content_original, prompt))
+    logger.info("translate_job: starting %d chunks with %d workers", len(jobs), effective_workers)
 
+    # Parallel HTTP calls — DB session NOT touched inside threads
     results: list[_TranslateResult] = []
     with ThreadPoolExecutor(max_workers=effective_workers) as executor:
         future_map = {
             executor.submit(
-                _translate_with_retry, client, text, prompt, effective_max_retries
-            ): (chunk_id, is_en, text)
-            for chunk_id, is_en, text, prompt in jobs
+                _translate_with_retry, client, j.original, j.prompt, effective_max_retries
+            ): j
+            for j in jobs
         }
         for future in as_completed(future_map):
-            chunk_id, is_en, _ = future_map[future]
+            j = future_map[future]
             try:
-                translation = future.result()
-                if translation is None:
-                    results.append(_TranslateResult(chunk_id, is_en, None, f"Failed after {effective_max_retries} retries"))
+                text = future.result()
+                if text is None:
+                    logger.warning("translate_job: chunk %s failed after %d retries", j.chunk_id, effective_max_retries)
+                    results.append(_TranslateResult(j.chunk_id, j.is_en, None, j.original, f"Failed after {effective_max_retries} retries"))
                 else:
-                    results.append(_TranslateResult(chunk_id, is_en, translation, None))
+                    results.append(_TranslateResult(j.chunk_id, j.is_en, text, j.original, None))
             except Exception as exc:
-                results.append(_TranslateResult(chunk_id, is_en, None, str(exc)))
+                logger.warning("translate_job: chunk %s raised %s", j.chunk_id, exc)
+                results.append(_TranslateResult(j.chunk_id, j.is_en, None, j.original, str(exc)))
 
-    # Write results back — single thread, single commit
+    # Write results back in a fresh DB round-trip
     for r in results:
-        chunk = chunk_map[r.chunk_id]
-        if r.text is None:
+        chunk = db.get(Chunk, r.chunk_id)
+        if chunk is None:
+            continue
+        if r.translation is None:
             chunk.translation_status = "failed"
             chunk.translation_error = r.error
             chunk.updated_at = now
             failed += 1
         else:
             if r.is_en:
-                chunk.content_en = chunk_map[r.chunk_id].content_original
-                chunk.content_pt = r.text
+                chunk.content_en = r.original
+                chunk.content_pt = r.translation
             else:
-                chunk.content_pt = chunk_map[r.chunk_id].content_original
-                chunk.content_en = r.text
+                chunk.content_pt = r.original
+                chunk.content_en = r.translation
             chunk.translation_status = "done"
             chunk.translation_model = model
             chunk.translated_at = now
@@ -140,15 +172,16 @@ def run_translate(
             chunk.index_status = "pending"
             chunk.updated_at = now
             translated += 1
-    db.commit()
 
+    db.commit()
+    logger.info("translate_job: wrote translated=%d failed=%d", translated, failed)
     return {"translated": translated, "failed": failed}
 
 
 def _translate_with_retry(client: LLMClient, text: str, prompt: str, max_retries: int) -> str | None:
-    for _ in range(max_retries):
+    for attempt in range(max_retries):
         try:
             return client.translate(text, prompt_template=prompt)
-        except LLMError:
-            pass
+        except LLMError as exc:
+            logger.debug("_translate_with_retry: attempt %d/%d failed: %s", attempt + 1, max_retries, exc)
     return None
