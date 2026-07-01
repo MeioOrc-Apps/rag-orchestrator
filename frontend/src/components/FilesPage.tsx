@@ -96,7 +96,7 @@ export function FilesPage() {
         <div className="empty-state">No files found</div>
       ) : (
         <div className="files-table" style={{ opacity: loading ? 0.6 : 1, transition: 'opacity 0.15s' }}>
-          <div className="files-table-head" style={{ gridTemplateColumns: '1fr 90px 90px 140px' }}>
+          <div className="files-table-head files-cols-4">
             <span>Path</span>
             <span>Status</span>
             <span>Domain</span>
@@ -104,7 +104,7 @@ export function FilesPage() {
           </div>
           {files.map(file => (
             <div key={file.id} data-testid="file-item">
-              <div className="file-row" style={{ gridTemplateColumns: '1fr 90px 90px 140px' }}>
+              <div className="file-row files-cols-4">
                 <span className="file-path" title={file.path}>{file.path}</span>
                 <span className={STATUS_CLASS[file.parse_status] ?? 'badge badge-skipped'}>
                   {file.parse_status}

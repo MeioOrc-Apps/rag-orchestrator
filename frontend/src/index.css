@@ -730,3 +730,192 @@ body {
   background: var(--border);
   margin: 28px 0;
 }
+
+/* ── Section title ───────────────────────────────── */
+.section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-strong);
+  margin: 0 0 12px;
+}
+
+/* ── Search form ─────────────────────────────────── */
+.search-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.search-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.search-query  { flex: 1; min-width: 0; }
+.search-domain { width: 180px; flex-shrink: 0; }
+
+.search-enrich {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+/* ── Search results ──────────────────────────────── */
+.search-results { display: flex; flex-direction: column; gap: 8px; }
+.search-results-count { margin: 0 0 8px; font-size: 13px; color: var(--text-muted); }
+
+.result-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  box-shadow: var(--shadow);
+}
+
+.result-card-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.result-card-score {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.result-card-content {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.enriched-notice {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: var(--accent-dim);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+
+.fallback-notice {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+  padding: 6px 12px;
+  background: var(--amber-bg);
+  color: var(--amber);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid rgba(217,119,6,0.2);
+}
+
+/* ── Admin actions ───────────────────────────────── */
+.admin-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ── Files table — 4-col layout ─────────────────── */
+.files-cols-4 {
+  grid-template-columns: 1fr 90px 90px 140px;
+}
+
+/* ── Responsive — Tablet (≤ 900px) ──────────────── */
+@media (max-width: 900px) {
+  :root { --sidebar-width: 180px; }
+
+  .sidebar-logo-name { font-size: 12px; }
+  .nav-item { font-size: 12px; padding: 7px 8px; }
+
+  .page { padding: 28px 24px; }
+
+  .files-cols-4 { grid-template-columns: 1fr 90px 100px; }
+  .files-cols-4 > *:nth-child(4) { display: none; }
+}
+
+/* ── Responsive — Mobile (≤ 640px) ──────────────── */
+@media (max-width: 640px) {
+  /* Sidebar → bottom nav */
+  .sidebar {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    min-height: auto;
+    flex-direction: row;
+    border-right: none;
+    border-top: 1px solid var(--sidebar-border);
+  }
+
+  .sidebar-logo  { display: none; }
+  .sidebar-footer { display: none; }
+
+  .sidebar-nav {
+    flex-direction: row;
+    padding: 6px 4px;
+    gap: 0;
+    justify-content: space-around;
+    width: 100%;
+  }
+
+  .nav-item {
+    flex-direction: column;
+    gap: 3px;
+    padding: 6px 4px;
+    font-size: 10px;
+    text-align: center;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .nav-item svg { width: 20px; height: 20px; }
+
+  /* Content: full width, bottom padding for nav bar */
+  .content {
+    margin-left: 0;
+    padding-bottom: 72px;
+  }
+
+  /* Pages */
+  .page { padding: 20px 16px; }
+
+  .page-header {
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  /* Stats */
+  .stat-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+
+  /* Search form: stack vertically */
+  .search-row { flex-direction: column; align-items: stretch; }
+  .search-domain { width: 100%; }
+
+  /* Files table: path + status only */
+  .files-cols-4 { grid-template-columns: 1fr 90px; }
+  .files-cols-4 > *:nth-child(n+3) { display: none; }
+
+  /* Folder form: stack */
+  .form-row { flex-direction: column; }
+
+  /* Buttons */
+  .btn-danger-sm { opacity: 0.6; }
+}

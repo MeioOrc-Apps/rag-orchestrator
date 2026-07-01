@@ -24,13 +24,14 @@ export function AdminPage() {
     finally { setActing(null) }
   }
 
-  const statuses = stats ? Object.entries(stats.files.by_parse_status) : []
+  const fileStatuses = stats ? Object.entries(stats.files.by_parse_status) : []
+  const indexStatuses = stats ? Object.entries(stats.chunks.by_index_status) : []
 
   return (
     <div className="page">
       <div className="page-header">
         <h1 className="page-title">Admin</h1>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="admin-actions">
           <button
             className="btn btn-secondary"
             onClick={() => handleAction('retry', retryFailed)}
@@ -58,7 +59,6 @@ export function AdminPage() {
         </div>
       </div>
 
-      {/* Stats */}
       <div className="stat-grid" style={{ opacity: loading ? 0.6 : 1, transition: 'opacity 0.15s' }}>
         <div className="stat-card">
           <div className="stat-label">Total Files</div>
@@ -68,28 +68,23 @@ export function AdminPage() {
           <div className="stat-label">Total Chunks</div>
           <div className="stat-value">{stats?.chunks.total ?? '—'}</div>
         </div>
-        {statuses.map(([status, count]) => (
+        {fileStatuses.map(([status, count]) => (
           <div className="stat-card" key={status}>
             <div className="stat-label">Files {status}</div>
-            <div className="stat-value" style={{ fontSize: 20 }}>
-              {String(count)} {status}
-            </div>
+            <div className="stat-value" style={{ fontSize: 20 }}>{String(count)} {status}</div>
           </div>
         ))}
-        {stats && Object.entries(stats.chunks.by_index_status).map(([status, count]) => (
+        {indexStatuses.map(([status, count]) => (
           <div className="stat-card" key={`idx-${status}`}>
-            <div className="stat-label">Chunks indexed {status}</div>
+            <div className="stat-label">Indexed {status}</div>
             <div className="stat-value" style={{ fontSize: 20 }}>{count}</div>
           </div>
         ))}
       </div>
 
-      {/* Failed files */}
       {failed && failed.failed_files.length > 0 && (
         <section style={{ marginTop: 28 }}>
-          <h2 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-strong)', margin: '0 0 12px' }}>
-            Failed Files ({failed.failed_files.length})
-          </h2>
+          <h2 className="section-title">Failed Files ({failed.failed_files.length})</h2>
           <div className="files-table">
             {failed.failed_files.map(f => (
               <div key={f.id} data-testid="failed-file">
@@ -105,15 +100,12 @@ export function AdminPage() {
         </section>
       )}
 
-      {/* Failed chunks summary */}
       {failed && failed.failed_chunks.length > 0 && (
         <section style={{ marginTop: 20 }}>
-          <h2 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-strong)', margin: '0 0 12px' }}>
-            Failed Chunks ({failed.failed_chunks.length})
-          </h2>
+          <h2 className="section-title">Failed Chunks ({failed.failed_chunks.length})</h2>
           <div className="card" style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-            {failed.failed_chunks.length} chunk{failed.failed_chunks.length !== 1 ? 's' : ''} with failed translation or indexing.
-            Use <strong>Retry Failed</strong> to reset them.
+            {failed.failed_chunks.length} chunk{failed.failed_chunks.length !== 1 ? 's' : ''} with
+            failed translation or indexing. Use <strong>Retry Failed</strong> to reset them.
           </div>
         </section>
       )}

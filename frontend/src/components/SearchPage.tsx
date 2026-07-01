@@ -35,47 +35,44 @@ export function SearchPage() {
         <h1 className="page-title">Search</h1>
       </div>
 
-      <form onSubmit={handleSearch} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28 }}>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <label htmlFor="search-query" style={{ display: 'none' }}>Query</label>
+      <form className="search-form" onSubmit={handleSearch}>
+        <div className="search-row">
           <input
             id="search-query"
             type="text"
-            className="form-input"
+            className="form-input search-query"
             placeholder="Search documents…"
             value={query}
             onChange={e => setQuery(e.target.value)}
             aria-label="Query"
-            style={{ flex: 1 }}
           />
           <input
             type="text"
-            className="form-input"
+            className="form-input search-domain"
             placeholder="Domain (optional)"
             value={domain}
             onChange={e => setDomain(e.target.value)}
-            style={{ width: 180 }}
           />
           <button type="submit" className="btn btn-primary" disabled={loading || !query.trim()}>
             {loading ? 'Searching…' : 'Search'}
           </button>
         </div>
 
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-muted)', cursor: 'pointer' }}>
+        <label className="search-enrich">
           <input type="checkbox" checked={enrich} onChange={e => setEnrich(e.target.checked)} />
           LLM query enrichment
         </label>
       </form>
 
       {response?.query_enriched && (
-        <div style={{ marginBottom: 12, padding: '8px 12px', background: 'var(--accent-dim)', borderRadius: 'var(--radius-sm)', fontSize: 13 }}>
+        <div className="enriched-notice">
           <span style={{ color: 'var(--text-muted)' }}>Enriched query: </span>
           <span style={{ color: 'var(--accent)', fontStyle: 'italic' }}>{response.query_enriched}</span>
         </div>
       )}
 
       {response?.fallback_used && (
-        <div className="scan-notice" style={{ marginBottom: 16, background: 'var(--amber-bg)', color: 'var(--amber)', border: '1px solid rgba(217,119,6,0.2)' }}>
+        <div className="fallback-notice">
           Fallback used — LLM enrichment returned no results; search ran without enrichment
         </div>
       )}
@@ -84,21 +81,19 @@ export function SearchPage() {
         response.results.length === 0 ? (
           <div className="empty-state">No results for "{query}"</div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <p style={{ margin: '0 0 8px', fontSize: 13, color: 'var(--text-muted)' }}>
+          <div className="search-results">
+            <p className="search-results-count">
               {response.total} result{response.total !== 1 ? 's' : ''}
             </p>
             {response.results.map((hit: SearchHit) => (
-              <div key={hit.chunk_id} className="card" style={{ padding: '16px 20px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, gap: 12 }}>
+              <div key={hit.chunk_id} className="result-card">
+                <div className="result-card-meta">
                   <span className="pill" style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11 }}>{hit.domain}</span>
-                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                  <span className="result-card-score">
                     score {hit.score.toFixed(2)} · chunk {hit.chunk_index} · {hit.source_language}
                   </span>
                 </div>
-                <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: 'var(--text)' }}>
-                  {hit.content_en || hit.content_pt}
-                </p>
+                <p className="result-card-content">{hit.content_en || hit.content_pt}</p>
               </div>
             ))}
           </div>
