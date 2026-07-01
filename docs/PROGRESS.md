@@ -507,3 +507,31 @@ backend/app/routers/files.py   (reescrito — saiu do stub para implementação 
 backend/app/schemas/files.py   (adicionados FileDetailResponse, ChunksSummary)
 backend/app/main.py            (registra search_router)
 ```
+
+---
+
+## Etapa 17 — Admin API ✅ (2026-06-30)
+
+**Branch:** `feat/etapa-17-admin-api` → merged na `main`
+
+**Comportamentos implementados:**
+- `GET /api/admin/stats`: contagens de files por `parse_status`; contagens de chunks por `index_status` e `translation_status`.
+- `GET /api/admin/failed`: lista files com `parse_status='failed'` e chunks com `translation_status='failed'` ou `index_status='failed'`.
+- `POST /api/admin/retry-failed`: reseta files `failed→pending` e chunks `failed→pending` (translation e index).
+- `POST /api/admin/reindex-all`: hard-delete todos os chunks; reseta todos os files `parse_status='pending'`.
+- `POST /api/admin/forcemerge`: chama `OpenSearchClient.forcemerge(domain)` para cada domain distinto nos files.
+- `OpenSearchClient.forcemerge(domain)`: POST `/{index}/_forcemerge?max_num_segments=1`.
+
+**Testes:** 256 passed, 1 skipped. 19 novos testes em `test_admin_api.py`.
+
+**Estrutura adicionada:**
+```
+backend/app/routers/admin.py
+backend/tests/test_admin_api.py
+```
+
+**Modificado:**
+```
+backend/app/opensearch_client.py  (método forcemerge adicionado)
+backend/app/main.py               (registra admin_router)
+```
