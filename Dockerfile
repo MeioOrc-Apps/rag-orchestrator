@@ -15,8 +15,11 @@ RUN python3 -c "import tomllib,subprocess,sys; f=open('pyproject.toml','rb'); d=
 
 COPY backend/ ./
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
 
 ENV PYTHONPATH=/app
 EXPOSE 8000
+EXPOSE 9700
 
-CMD ["sh", "-c", "alembic upgrade head && python -c 'from app.config import Settings; from app.database import get_engine, get_session_factory; from app.seed import seed_from_config; s=Settings(); e=get_engine(s.database_url); f=get_session_factory(e); db=f(); seed_from_config(db); db.close(); e.dispose()' && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+CMD ["/start.sh"]
