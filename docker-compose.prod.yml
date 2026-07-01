@@ -22,23 +22,6 @@ services:
       timeout: 5s
       retries: 5
 
-  opensearch:
-    image: opensearchproject/opensearch:3.0.0
-    restart: unless-stopped
-    networks:
-      - rag-network
-    environment:
-      - discovery.type=single-node
-      - DISABLE_SECURITY_PLUGIN=true
-      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
-    volumes:
-      - /DATA/AppData/rag-orchestrator/opensearch:/usr/share/opensearch/data
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health | grep -qv '\"status\":\"red\"'"]
-      interval: 15s
-      timeout: 10s
-      retries: 10
-
   app:
     image: ghcr.io/meiorc-apps/rag-orchestrator:latest
     restart: unless-stopped
@@ -47,15 +30,13 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      opensearch:
-        condition: service_healthy
     ports:
       - "8080:8000"
       - "9700:9700"
     environment:
       DATABASE_URL: postgresql+psycopg://orchestrator:orchestrator@db:5432/orchestrator
       DOCLING_BASE_URL: http://host.docker.internal:5001
-      OPENSEARCH_HOST: http://opensearch:9200
+      OPENSEARCH_HOST: http://host.docker.internal:9200
       OPENSEARCH_INDEX_PREFIX: rag
       DEFAULT_OWNER_USERNAME: default
       INPUT_DIR: /data/inputs
