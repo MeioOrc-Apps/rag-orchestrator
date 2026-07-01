@@ -535,3 +535,26 @@ backend/tests/test_admin_api.py
 backend/app/opensearch_client.py  (método forcemerge adicionado)
 backend/app/main.py               (registra admin_router)
 ```
+
+---
+
+## Etapa 18 — MCP Server ✅ (2026-06-30)
+
+**Branch:** `feat/etapa-18-mcp-server` → merged na `main`
+
+**Comportamentos implementados:**
+- `mcp_app`: FastAPI separado em `MCP_PORT` (9700).
+- `GET /`: retorna manifest `{tools: [...]}` com 4 tools (name, description, parameters).
+- `POST /tools/call {tool, arguments}`: despacha para a tool correta; `tool` desconhecido → 404.
+- `search`: POST `/api/search` com `query`, `domain?`, `enrich`, `limit`, `offset`.
+- `list_files`: GET `/api/files` com `domain?`, `parse_status?`, `limit`, `offset`.
+- `get_stats`: GET `/api/admin/stats`.
+- `reindex_file`: GET `/api/files` para resolver `filename→id`, depois POST `/api/files/{id}/reindex`; filename não encontrado → `{error: "File not found: ..."}`.
+
+**Testes:** 268 passed, 1 skipped. 12 novos testes em `test_mcp_server.py` (mocked httpx).
+
+**Estrutura adicionada:**
+```
+backend/app/mcp_server.py
+backend/tests/test_mcp_server.py
+```
