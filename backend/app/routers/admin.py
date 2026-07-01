@@ -31,9 +31,12 @@ def get_stats(db: Session = Depends(get_db)) -> dict:
     chunks = db.query(Chunk).all()
     chunks_by_index: dict[str, int] = defaultdict(int)
     chunks_by_translation: dict[str, int] = defaultdict(int)
+    translated_pending_reindex = 0
     for c in chunks:
         chunks_by_index[c.index_status] += 1
         chunks_by_translation[c.translation_status] += 1
+        if c.translation_status == "done" and c.index_status == "pending":
+            translated_pending_reindex += 1
 
     return {
         "files": {
@@ -44,6 +47,7 @@ def get_stats(db: Session = Depends(get_db)) -> dict:
             "total": len(chunks),
             "by_index_status": dict(chunks_by_index),
             "by_translation_status": dict(chunks_by_translation),
+            "translated_pending_reindex": translated_pending_reindex,
         },
     }
 

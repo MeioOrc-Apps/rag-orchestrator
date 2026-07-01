@@ -132,6 +132,14 @@ export function AdminPage() {
             <div className="stat-value" style={{ fontSize: 20 }}>{count}</div>
           </div>
         ))}
+        {stats && stats.chunks.translated_pending_reindex > 0 && (
+          <div className="stat-card" style={{ borderColor: '#f59e0b' }}>
+            <div className="stat-label">Translated → awaiting reindex</div>
+            <div className="stat-value" style={{ fontSize: 20, color: '#f59e0b' }}>
+              {stats.chunks.translated_pending_reindex}
+            </div>
+          </div>
+        )}
       </div>
 
       {failed && failed.failed_files.length > 0 && (

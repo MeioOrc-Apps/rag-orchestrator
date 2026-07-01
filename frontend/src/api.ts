@@ -184,6 +184,7 @@ export interface AdminStats {
     total: number
     by_index_status: Record<string, number>
     by_translation_status: Record<string, number>
+    translated_pending_reindex: number
   }
 }
 

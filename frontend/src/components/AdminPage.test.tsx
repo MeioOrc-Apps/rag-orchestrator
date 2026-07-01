@@ -12,6 +12,7 @@ const mockStats: api.AdminStats = {
     total: 50,
     by_index_status: { done: 45, failed: 3, pending: 2 },
     by_translation_status: { done: 40, not_needed: 5, failed: 5 },
+    translated_pending_reindex: 0,
   },
 }
 
