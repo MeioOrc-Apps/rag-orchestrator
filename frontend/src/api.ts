@@ -216,15 +216,15 @@ export async function getAdminFailed(): Promise<AdminFailed> {
   return _json(await fetch(`${BASE}/admin/failed`))
 }
 
-export async function retryFailed(): Promise<{ message: string }> {
+export async function retryFailed(): Promise<unknown> {
   return _json(await fetch(`${BASE}/admin/retry-failed`, { method: 'POST' }))
 }
 
-export async function reindexAll(): Promise<{ message: string }> {
+export async function reindexAll(): Promise<unknown> {
   return _json(await fetch(`${BASE}/admin/reindex-all`, { method: 'POST' }))
 }
 
-export async function forcemerge(): Promise<{ message: string }> {
+export async function forcemerge(): Promise<unknown> {
   return _json(await fetch(`${BASE}/admin/forcemerge`, { method: 'POST' }))
 }
 
