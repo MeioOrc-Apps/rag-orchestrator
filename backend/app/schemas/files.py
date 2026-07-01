@@ -11,6 +11,7 @@ T = TypeVar("T")
 
 class ChunksSummary(BaseModel):
     total: int
+    translated: int
     done: int
     pending: int
     failed: int

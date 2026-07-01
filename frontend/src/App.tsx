@@ -69,8 +69,18 @@ const PAGES: { id: Page; label: string; Icon: () => ReactElement }[] = [
   { id: 'admin',   label: 'Admin',   Icon: IconAdmin },
 ]
 
+const LS_KEY = 'rag-page'
+
 export default function App() {
-  const [page, setPage] = useState<Page>('status')
+  const [page, setPage] = useState<Page>(() => {
+    const saved = localStorage.getItem(LS_KEY)
+    return (saved as Page | null) ?? 'status'
+  })
+
+  function navigate(p: Page) {
+    setPage(p)
+    localStorage.setItem(LS_KEY, p)
+  }
 
   return (
     <>
@@ -90,7 +100,7 @@ export default function App() {
             <button
               key={id}
               className="nav-item"
-              onClick={() => setPage(id)}
+              onClick={() => navigate(id)}
               aria-current={page === id ? 'page' : undefined}
             >
               <Icon />

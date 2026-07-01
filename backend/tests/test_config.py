@@ -54,8 +54,8 @@ def test_config_has_correct_defaults(monkeypatch):
     assert settings.openrouter_api_key == ""
     assert settings.scan_interval_minutes == 15
     assert settings.parse_interval_minutes == 5
-    assert settings.translate_interval_minutes == 5
-    assert settings.index_interval_minutes == 5
+    assert settings.translate_interval_minutes == 1
+    assert settings.index_interval_minutes == 1
     assert settings.mcp_port == 9700
 
 

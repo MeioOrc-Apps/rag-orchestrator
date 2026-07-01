@@ -84,6 +84,7 @@ export interface File {
 
 export interface ChunksSummary {
   total: number
+  translated: number
   done: number
   pending: number
   failed: number

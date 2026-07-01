@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.models import Chunk
 from app.opensearch_client import OpenSearchClient
 
-_BATCH_SIZE = 100
+_BATCH_SIZE = 1000
 
 
 def run_index_job() -> None:

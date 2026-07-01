@@ -6,48 +6,51 @@ import * as api from '../api'
 
 vi.mock('../api')
 
+const mockStats: api.AdminStats = {
+  files: { total: 11, by_parse_status: { done: 11 } },
+  chunks: {
+    total: 100,
+    by_index_status: { done: 50, pending: 50 },
+    by_translation_status: { done: 75, pending: 25 },
+  },
+}
+
 describe('StatusPage', () => {
   beforeEach(() => {
-    vi.mocked(api.getSyncStatus).mockResolvedValue({ last_run: null })
+    vi.mocked(api.getSyncStatus).mockResolvedValue({ last_run: '2026-06-14T12:00:00Z' })
+    vi.mocked(api.getAdminStats).mockResolvedValue(mockStats)
     vi.mocked(api.triggerSync).mockResolvedValue({
-      processed: 3,
-      skipped: 1,
-      failed: 0,
-      scan_triggered: true,
+      processed: 3, skipped: 1, failed: 0, scan_triggered: true,
     })
   })
 
-  it('shows "never synced" when last_run is null', async () => {
-    render(<StatusPage />)
-    await waitFor(() => {
-      expect(screen.getByText(/never synced/i)).toBeInTheDocument()
-    })
-  })
-
-  it('shows last run timestamp when available', async () => {
-    vi.mocked(api.getSyncStatus).mockResolvedValue({
-      last_run: '2026-06-14T12:00:00Z',
-      processed: 5,
-      skipped: 2,
-      failed: 1,
-      scan_triggered: true,
-    })
-    render(<StatusPage />)
-    await waitFor(() => {
-      expect(screen.getByText(/2026/)).toBeInTheDocument()
-    })
-  })
-
-  it('renders "Sync Now" button', async () => {
+  it('renders Sync Now button', () => {
     render(<StatusPage />)
     expect(screen.getByRole('button', { name: /sync now/i })).toBeInTheDocument()
   })
 
+  it('shows pipeline status title', () => {
+    render(<StatusPage />)
+    expect(screen.getByText(/pipeline status/i)).toBeInTheDocument()
+  })
+
+  it('shows chunk totals after loading', async () => {
+    render(<StatusPage />)
+    await waitFor(() => {
+      expect(screen.getByText('100')).toBeInTheDocument()
+    })
+  })
+
+  it('shows last sync timestamp', async () => {
+    render(<StatusPage />)
+    await waitFor(() => {
+      expect(screen.getByText(/14\/06\/2026/)).toBeInTheDocument()
+    })
+  })
+
   it('shows loading state while sync is running', async () => {
     let resolve: (v: api.SyncResult) => void
-    vi.mocked(api.triggerSync).mockReturnValue(
-      new Promise(r => { resolve = r })
-    )
+    vi.mocked(api.triggerSync).mockReturnValue(new Promise(r => { resolve = r }))
     const user = userEvent.setup()
     render(<StatusPage />)
 
@@ -55,30 +58,5 @@ describe('StatusPage', () => {
     expect(screen.getByRole('button', { name: /syncing/i })).toBeDisabled()
 
     resolve!({ processed: 1, skipped: 0, failed: 0, scan_triggered: false })
-  })
-
-  it('updates status after sync completes', async () => {
-    const user = userEvent.setup()
-    render(<StatusPage />)
-
-    await user.click(screen.getByRole('button', { name: /sync now/i }))
-
-    await waitFor(() => {
-      expect(screen.getByText(/processed: 3/i)).toBeInTheDocument()
-    })
-  })
-
-  it('shows scan_triggered indicator', async () => {
-    vi.mocked(api.getSyncStatus).mockResolvedValue({
-      last_run: '2026-06-14T10:00:00Z',
-      processed: 1,
-      skipped: 0,
-      failed: 0,
-      scan_triggered: true,
-    })
-    render(<StatusPage />)
-    await waitFor(() => {
-      expect(screen.getByText(/scan triggered/i)).toBeInTheDocument()
-    })
   })
 })

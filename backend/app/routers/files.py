@@ -55,26 +55,35 @@ def list_files(
     items = q.order_by(File.created_at.desc()).offset(offset).limit(limit).all()
     file_ids = [f.id for f in items]
 
-    # Batch-fetch chunk counts grouped by file_id + index_status
-    chunk_counts: dict[uuid.UUID, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+    # Batch-fetch index_status and translation_status counts per file
+    index_counts: dict[uuid.UUID, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+    trans_counts: dict[uuid.UUID, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     if file_ids:
-        rows = (
+        for fid, status, cnt in (
             db.query(Chunk.file_id, Chunk.index_status, func.count().label("cnt"))
             .filter(Chunk.file_id.in_(file_ids))
             .group_by(Chunk.file_id, Chunk.index_status)
             .all()
-        )
-        for fid, status, cnt in rows:
-            chunk_counts[fid][status] = cnt
+        ):
+            index_counts[fid][status] = cnt
+        for fid, status, cnt in (
+            db.query(Chunk.file_id, Chunk.translation_status, func.count().label("cnt"))
+            .filter(Chunk.file_id.in_(file_ids))
+            .group_by(Chunk.file_id, Chunk.translation_status)
+            .all()
+        ):
+            trans_counts[fid][status] = cnt
 
     def _chunks_summary(fid: uuid.UUID) -> ChunksSummary:
-        c = chunk_counts[fid]
+        ix = index_counts[fid]
+        tr = trans_counts[fid]
         return ChunksSummary(
-            total=sum(c.values()),
-            done=c.get("done", 0),
-            pending=c.get("pending", 0),
-            failed=c.get("failed", 0),
-            deleted=c.get("deleted", 0),
+            total=sum(ix.values()),
+            translated=tr.get("done", 0),
+            done=ix.get("done", 0),
+            pending=ix.get("pending", 0),
+            failed=ix.get("failed", 0),
+            deleted=ix.get("deleted", 0),
         )
 
     return PaginatedResponse(
@@ -91,6 +100,7 @@ def get_file(file_id: uuid.UUID, db: Session = Depends(get_db)) -> FileDetailRes
     chunks = db.query(Chunk).filter(Chunk.file_id == file_row.id).all()
     summary = ChunksSummary(
         total=len(chunks),
+        translated=sum(1 for c in chunks if c.translation_status == "done"),
         done=sum(1 for c in chunks if c.index_status == "done"),
         pending=sum(1 for c in chunks if c.index_status == "pending"),
         failed=sum(1 for c in chunks if c.index_status == "failed"),

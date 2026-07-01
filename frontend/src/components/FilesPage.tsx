@@ -15,13 +15,15 @@ const POLL_INTERVAL_MS = 8000
 
 function ChunkProgress({ chunks }: { chunks: File['chunks'] }) {
   if (!chunks || chunks.total === 0) return <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>—</span>
-  const { total, done, failed } = chunks
-  const pct = Math.round((done / total) * 100)
+  const { total, translated, done, failed } = chunks
+  const tPct = Math.round((translated / total) * 100)
+  const iPct = Math.round((done / total) * 100)
   return (
-    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-      {done}/{total} indexed
-      {failed > 0 && <span style={{ color: 'var(--red)', marginLeft: 4 }}>{failed} failed</span>}
-      {pct < 100 && <span style={{ marginLeft: 4 }}>({pct}%)</span>}
+    <span style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+      <span title="Traduzidos">T {translated}/{total} ({tPct}%)</span>
+      <span style={{ margin: '0 4px', opacity: 0.4 }}>·</span>
+      <span title="Indexados">I {done}/{total} ({iPct}%)</span>
+      {failed > 0 && <span style={{ color: 'var(--red)', marginLeft: 4 }}>{failed}✗</span>}
     </span>
   )
 }

@@ -14,8 +14,8 @@ class Settings(BaseSettings):
 
     scan_interval_minutes: int = 15
     parse_interval_minutes: int = 5
-    translate_interval_minutes: int = 5
-    index_interval_minutes: int = 5
+    translate_interval_minutes: int = 1
+    index_interval_minutes: int = 1
     mcp_port: int = 9700
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
