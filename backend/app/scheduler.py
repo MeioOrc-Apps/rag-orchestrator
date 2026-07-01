@@ -7,17 +7,19 @@ from apscheduler.triggers.interval import IntervalTrigger
 logger = logging.getLogger(__name__)
 
 
-def create_and_configure_scheduler(
+def create_scheduler() -> BackgroundScheduler:
+    return BackgroundScheduler(job_defaults={"coalesce": True, "max_instances": 1})
+
+
+def add_interval_job(
+    scheduler: BackgroundScheduler,
+    func: Callable,
     interval_minutes: int,
-    job_func: Callable,
-) -> BackgroundScheduler:
-    scheduler = BackgroundScheduler(
-        job_defaults={"coalesce": True, "max_instances": 1}
-    )
+    job_id: str,
+) -> None:
     scheduler.add_job(
-        job_func,
+        func,
         trigger=IntervalTrigger(minutes=interval_minutes),
-        id="sync_pipeline",
+        id=job_id,
         replace_existing=True,
     )
-    return scheduler

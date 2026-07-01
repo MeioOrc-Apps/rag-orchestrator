@@ -11,6 +11,26 @@ from app.opensearch_client import OpenSearchClient
 _BATCH_SIZE = 100
 
 
+def run_index_job() -> None:
+    """Standalone scheduler wrapper — manages its own DB session."""
+    import logging
+    from app.config import Settings
+    from app.database import get_engine, get_session_factory
+
+    logger = logging.getLogger(__name__)
+    settings = Settings()
+    engine = get_engine(settings.database_url)
+    factory = get_session_factory(engine)
+    db = factory()
+    try:
+        run_index(db)
+    except Exception as exc:
+        logger.error("Scheduled index job failed: %s", exc)
+    finally:
+        db.close()
+        engine.dispose()
+
+
 def run_index(db: Session, batch_size: int = _BATCH_SIZE) -> dict:
     from app.config import Settings
     cfg = Settings()

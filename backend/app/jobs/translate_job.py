@@ -8,6 +8,26 @@ from app.llm_client import LLMClient, LLMError
 from app.models import Chunk, TranslationSettings
 
 
+def run_translate_job() -> None:
+    """Standalone scheduler wrapper — manages its own DB session."""
+    import logging
+    from app.config import Settings
+    from app.database import get_engine, get_session_factory
+
+    logger = logging.getLogger(__name__)
+    settings = Settings()
+    engine = get_engine(settings.database_url)
+    factory = get_session_factory(engine)
+    db = factory()
+    try:
+        run_translate(db)
+    except Exception as exc:
+        logger.error("Scheduled translate job failed: %s", exc)
+    finally:
+        db.close()
+        engine.dispose()
+
+
 def run_translate(db: Session, max_retries: int | None = None) -> dict:
     settings = db.query(TranslationSettings).filter(TranslationSettings.enabled.is_(True)).first()
     if settings is None:

@@ -21,7 +21,7 @@ from app.routers import files as files_router
 from app.routers import folders as folders_router
 from app.routers import search as search_router
 from app.routers import sync as sync_router
-from app.scheduler import create_and_configure_scheduler
+from app.scheduler import add_interval_job, create_scheduler
 
 _STATIC_DIR = Path(__file__).parent.parent / "frontend" / "dist"
 
@@ -29,13 +29,19 @@ _STATIC_DIR = Path(__file__).parent.parent / "frontend" / "dist"
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from app.config import Settings
+    from app.jobs.delete_job import run_delete_job
+    from app.jobs.index_job import run_index_job
+    from app.jobs.parse_job import run_parse_job
+    from app.jobs.translate_job import run_translate_job
     from app.routers.sync import run_sync_job
 
     settings = Settings()
-    scheduler = create_and_configure_scheduler(
-        interval_minutes=settings.scan_interval_minutes,
-        job_func=run_sync_job,
-    )
+    scheduler = create_scheduler()
+    add_interval_job(scheduler, run_sync_job, settings.scan_interval_minutes, "scan")
+    add_interval_job(scheduler, run_parse_job, settings.parse_interval_minutes, "parse")
+    add_interval_job(scheduler, run_translate_job, settings.translate_interval_minutes, "translate")
+    add_interval_job(scheduler, run_index_job, settings.index_interval_minutes, "index")
+    add_interval_job(scheduler, run_delete_job, settings.index_interval_minutes, "delete")
     scheduler.start()
     yield
     scheduler.shutdown(wait=False)
