@@ -7,8 +7,7 @@ from langdetect import DetectorFactory, detect_langs
 from langdetect.lang_detect_exception import LangDetectException
 from sqlalchemy.orm import Session
 
-from app.models import Chunk, File
-from app.pipeline.router import route
+from app.models import Chunk, File, PipelineSettings
 
 DetectorFactory.seed = 0  # deterministic results
 
@@ -77,7 +76,8 @@ def _rfind_space(text: str, start: int, end: int) -> int | None:
     return pos + 1
 
 
-def _read_file(path: str) -> str:
+def _read_file(path: str, docling_base_url: str) -> str:
+    from app.pipeline.router import route
     kind = route(path)
     if kind == "unsupported":
         raise ValueError(f"Unsupported file type: {path}")
@@ -90,10 +90,10 @@ def _read_file(path: str) -> str:
         from app.markitdown_client import convert_to_markdown
         return convert_to_markdown(path)
     if kind == "docling":
-        from app.config import Settings
+        if not docling_base_url:
+            raise ValueError("Docling required but DOCLING_BASE_URL not configured")
         from app.docling_client import DoclingClient
-        settings = Settings()
-        return DoclingClient(settings.docling_base_url).convert(path)
+        return DoclingClient(docling_base_url).convert(path)
     raise ValueError(f"Unknown route kind: {kind}")
 
 
@@ -109,7 +109,7 @@ def run_parse_job() -> None:
     factory = get_session_factory(engine)
     db = factory()
     try:
-        run_parse(db)
+        run_parse(db, docling_base_url=settings.docling_base_url)
     except Exception as exc:
         logger.error("Scheduled parse job failed: %s", exc)
     finally:
@@ -117,19 +117,23 @@ def run_parse_job() -> None:
         engine.dispose()
 
 
-def run_parse(db: Session) -> dict:
+def run_parse(db: Session, docling_base_url: str = "") -> dict:
+    pipeline_cfg = db.query(PipelineSettings).first()
+    chunk_size = pipeline_cfg.chunk_size if pipeline_cfg else 1000
+    chunk_overlap = pipeline_cfg.chunk_overlap if pipeline_cfg else 100
+    batch_size = pipeline_cfg.parse_batch_size if pipeline_cfg else 20
+
     files = (
         db.query(File)
         .filter(File.parse_status == "pending", File.deleted_at.is_(None))
+        .limit(batch_size)
         .all()
     )
     processed = failed = 0
     for file_row in files:
         try:
-            text = _read_file(file_row.path)
-            from app.config import Settings
-            settings = Settings()
-            raw_chunks = chunk_text(text, size=settings.chunk_size, overlap=settings.chunk_overlap)
+            text = _read_file(file_row.path, docling_base_url)
+            raw_chunks = chunk_text(text, size=chunk_size, overlap=chunk_overlap)
             lang = detect_language(text)
             translation_status = "not_needed" if lang == "en" else "pending"
             for idx, content in enumerate(raw_chunks):

@@ -97,10 +97,22 @@ class TranslationSettings(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     model: Mapped[str] = mapped_column(Text, nullable=False)
+    enrichment_model: Mapped[str] = mapped_column(Text, nullable=False, default="")
     prompt_template: Mapped[str] = mapped_column(Text, nullable=False)
     target_language: Mapped[str] = mapped_column(Text, nullable=False, default="en")
     batch_size: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
+
+
+class PipelineSettings(Base):
+    __tablename__ = "pipeline_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    chunk_size: Mapped[int] = mapped_column(Integer, nullable=False, default=1000)
+    chunk_overlap: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
+    parse_batch_size: Mapped[int] = mapped_column(Integer, nullable=False, default=20)
+    max_translation_retries: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
 
 

@@ -83,8 +83,18 @@ class TestSearchBasic:
         assert count >= 1
 
 
+def _set_enrichment_model(db_session, model: str = "local:test-model") -> None:
+    """Set enrichment_model in translation_settings so enrichment tests work."""
+    from app.models import TranslationSettings
+    ts = db_session.query(TranslationSettings).first()
+    if ts:
+        ts.enrichment_model = model
+        db_session.commit()
+
+
 class TestSearchEnrichment:
-    def test_enrich_true_calls_llm_client(self, api_client):
+    def test_enrich_true_calls_llm_client(self, api_client, db_session):
+        _set_enrichment_model(db_session)
         with patch("app.routers.search.OpenSearchClient") as MockOS, \
              patch("app.routers.search.LLMClient") as MockLLM:
             MockLLM.return_value.translate.return_value = "enriched query"
@@ -99,7 +109,16 @@ class TestSearchEnrichment:
             api_client.post("/api/search", json={"query": "test", "enrich": False})
         MockLLM.return_value.translate.assert_not_called()
 
-    def test_zero_results_with_enrich_retries_without(self, api_client):
+    def test_enrich_true_without_model_skips_llm(self, api_client):
+        # enrichment_model is "" by default in test DB — LLM must not be called
+        with patch("app.routers.search.OpenSearchClient") as MockOS, \
+             patch("app.routers.search.LLMClient") as MockLLM:
+            MockOS.return_value.search.return_value = _os_response([_os_hit("1")])
+            api_client.post("/api/search", json={"query": "test", "enrich": True})
+        MockLLM.return_value.translate.assert_not_called()
+
+    def test_zero_results_with_enrich_retries_without(self, api_client, db_session):
+        _set_enrichment_model(db_session)
         with patch("app.routers.search.OpenSearchClient") as MockOS, \
              patch("app.routers.search.LLMClient") as MockLLM:
             MockLLM.return_value.translate.return_value = "enriched"
@@ -121,7 +140,8 @@ class TestSearchEnrichment:
         assert body["fallback_used"] is False
         assert MockOS.return_value.search.call_count == 1
 
-    def test_enrichment_llm_error_falls_back_to_original(self, api_client):
+    def test_enrichment_llm_error_falls_back_to_original(self, api_client, db_session):
+        _set_enrichment_model(db_session)
         from app.llm_client import LLMError
         with patch("app.routers.search.OpenSearchClient") as MockOS, \
              patch("app.routers.search.LLMClient") as MockLLM:

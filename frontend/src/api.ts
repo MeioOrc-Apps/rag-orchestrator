@@ -224,3 +224,57 @@ export async function reindexAll(): Promise<{ message: string }> {
 export async function forcemerge(): Promise<{ message: string }> {
   return _json(await fetch(`${BASE}/admin/forcemerge`, { method: 'POST' }))
 }
+
+// ── Admin Settings ─────────────────────────────────────────────────────────
+
+export interface LLMSettings {
+  translation_model: string
+  enrichment_model: string
+  translation_enabled: boolean
+  translation_batch_size: number
+  prompt_template: string
+}
+
+export interface PipelineSettings {
+  chunk_size: number
+  chunk_overlap: number
+  parse_batch_size: number
+  max_translation_retries: number
+}
+
+export interface AppSettings {
+  llm: LLMSettings
+  pipeline: PipelineSettings
+}
+
+export interface LLMSettingsUpdate {
+  translation_model?: string
+  enrichment_model?: string
+  translation_enabled?: boolean
+  translation_batch_size?: number
+  prompt_template?: string
+}
+
+export interface PipelineSettingsUpdate {
+  chunk_size?: number
+  chunk_overlap?: number
+  parse_batch_size?: number
+  max_translation_retries?: number
+}
+
+export interface SettingsUpdate {
+  llm?: LLMSettingsUpdate
+  pipeline?: PipelineSettingsUpdate
+}
+
+export async function getSettings(): Promise<AppSettings> {
+  return _json(await fetch(`${BASE}/admin/settings`))
+}
+
+export async function updateSettings(body: SettingsUpdate): Promise<AppSettings> {
+  return _json(await fetch(`${BASE}/admin/settings`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }))
+}

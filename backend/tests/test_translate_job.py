@@ -6,6 +6,17 @@ pytestmark = pytest.mark.integration
 
 
 @pytest.fixture
+def translation_enabled(db_session):
+    """Enable translation in DB settings (disabled by default in migration seed)."""
+    from app.models import TranslationSettings
+    ts = db_session.query(TranslationSettings).first()
+    if ts:
+        ts.model = "local:test-model"
+        ts.enabled = True
+        db_session.commit()
+
+
+@pytest.fixture
 def pending_chunk(db_session, tmp_path):
     """Insert a File + one pending Chunk into db_session."""
     from app.models import User, File, Chunk
@@ -40,6 +51,7 @@ def pending_chunk(db_session, tmp_path):
     return chunk
 
 
+@pytest.mark.usefixtures("translation_enabled")
 class TestTranslateJobSuccess:
     def test_pending_chunk_gets_content_en_set(self, db_session, pending_chunk):
         from app.jobs.translate_job import run_translate
@@ -152,6 +164,7 @@ class TestTranslateJobNotNeeded:
             instance.translate.assert_not_called()
 
 
+@pytest.mark.usefixtures("translation_enabled")
 class TestTranslateJobRetry:
     def test_failed_translation_retries_up_to_max(self, db_session, pending_chunk):
         from app.jobs.translate_job import run_translate
@@ -191,6 +204,7 @@ class TestTranslateJobRetry:
         assert instance.translate.call_count == 2
 
 
+@pytest.mark.usefixtures("translation_enabled")
 class TestTranslateJobBatching:
     def test_respects_batch_size_from_translation_settings(self, db_session, tmp_path):
         from app.jobs.translate_job import run_translate

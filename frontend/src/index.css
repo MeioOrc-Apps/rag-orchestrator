@@ -837,6 +837,121 @@ body {
   flex-wrap: wrap;
 }
 
+/* ── Admin Settings ──────────────────────────────── */
+.settings-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin-bottom: 16px;
+}
+
+.settings-group-title {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin: 0 0 16px;
+}
+
+.settings-field {
+  margin-bottom: 16px;
+}
+
+.settings-field:last-child { margin-bottom: 0; }
+
+.settings-label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-strong);
+  margin-bottom: 6px;
+}
+
+.settings-hint {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.settings-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  color: var(--text);
+  background: var(--bg);
+  transition: border-color 0.15s;
+}
+
+.settings-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.settings-input-sm { max-width: 160px; }
+
+.settings-textarea {
+  resize: vertical;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  min-height: 72px;
+}
+
+.settings-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.settings-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.settings-toggle input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
+.settings-examples {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.settings-example-label {
+  font-weight: 500;
+}
+
+code.settings-example {
+  display: inline;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  background: var(--gray-bg);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 11px;
+  color: var(--accent);
+  margin-right: 4px;
+}
+
+.settings-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
 /* ── Files table — 4-col layout ─────────────────── */
 .files-cols-4 {
   grid-template-columns: 1fr 90px 90px 140px;
@@ -933,4 +1048,9 @@ body {
   /* Admin actions: stack */
   .admin-actions { width: 100%; }
   .admin-actions .btn { flex: 1; justify-content: center; }
+
+  /* Settings: stack 2-col rows */
+  .settings-row-2 { grid-template-columns: 1fr; }
+  .settings-input-sm { max-width: 100%; }
+  .settings-section { padding: 16px; }
 }

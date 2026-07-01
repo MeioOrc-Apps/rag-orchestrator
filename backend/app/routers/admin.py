@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import datetime, timezone
+from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db
-from app.models import Chunk, File
+from app.models import Chunk, File, PipelineSettings, TranslationSettings
 from app.opensearch_client import OpenSearchClient
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -129,3 +131,86 @@ def forcemerge(db: Session = Depends(get_db)) -> dict:
     for domain in domains:
         client.forcemerge(domain)
     return {"domains_merged": domains}
+
+
+# ── Settings endpoints ────────────────────────────────────────────────────────
+
+@router.get("/settings")
+def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
+    ts = db.query(TranslationSettings).first()
+    ps = db.query(PipelineSettings).first()
+    return {
+        "llm": {
+            "translation_model": ts.model if ts else "",
+            "enrichment_model": ts.enrichment_model if ts else "",
+            "translation_enabled": ts.enabled if ts else False,
+            "translation_batch_size": ts.batch_size if ts else 5,
+            "prompt_template": ts.prompt_template if ts else "",
+        },
+        "pipeline": {
+            "chunk_size": ps.chunk_size if ps else 1000,
+            "chunk_overlap": ps.chunk_overlap if ps else 100,
+            "parse_batch_size": ps.parse_batch_size if ps else 20,
+            "max_translation_retries": ps.max_translation_retries if ps else 3,
+        },
+    }
+
+
+class LLMSettingsUpdate(BaseModel):
+    translation_model: str | None = None
+    enrichment_model: str | None = None
+    translation_enabled: bool | None = None
+    translation_batch_size: int | None = None
+    prompt_template: str | None = None
+
+
+class PipelineSettingsUpdate(BaseModel):
+    chunk_size: int | None = None
+    chunk_overlap: int | None = None
+    parse_batch_size: int | None = None
+    max_translation_retries: int | None = None
+
+
+class SettingsUpdate(BaseModel):
+    llm: LLMSettingsUpdate | None = None
+    pipeline: PipelineSettingsUpdate | None = None
+
+
+@router.put("/settings")
+def update_settings(body: SettingsUpdate, db: Session = Depends(get_db)) -> dict[str, Any]:
+    now = datetime.now(timezone.utc)
+
+    if body.llm is not None:
+        ts = db.query(TranslationSettings).first()
+        if ts is None:
+            raise HTTPException(status_code=404, detail="translation_settings row not found")
+        llm = body.llm
+        if llm.translation_model is not None:
+            ts.model = llm.translation_model
+        if llm.enrichment_model is not None:
+            ts.enrichment_model = llm.enrichment_model
+        if llm.translation_enabled is not None:
+            ts.enabled = llm.translation_enabled
+        if llm.translation_batch_size is not None:
+            ts.batch_size = llm.translation_batch_size
+        if llm.prompt_template is not None:
+            ts.prompt_template = llm.prompt_template
+        ts.updated_at = now
+
+    if body.pipeline is not None:
+        ps = db.query(PipelineSettings).first()
+        if ps is None:
+            raise HTTPException(status_code=404, detail="pipeline_settings row not found")
+        pipe = body.pipeline
+        if pipe.chunk_size is not None:
+            ps.chunk_size = pipe.chunk_size
+        if pipe.chunk_overlap is not None:
+            ps.chunk_overlap = pipe.chunk_overlap
+        if pipe.parse_batch_size is not None:
+            ps.parse_batch_size = pipe.parse_batch_size
+        if pipe.max_translation_retries is not None:
+            ps.max_translation_retries = pipe.max_translation_retries
+        ps.updated_at = now
+
+    db.commit()
+    return get_settings(db)

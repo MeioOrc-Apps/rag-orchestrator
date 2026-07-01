@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.dependencies import get_db
 from app.llm_client import LLMClient, LLMError
-from app.models import SearchQueryLog
+from app.models import SearchQueryLog, TranslationSettings
 from app.opensearch_client import OpenSearchClient
 from app.schemas.search import SearchRequest, SearchHit, SearchResponse
 
@@ -46,6 +46,10 @@ def search(req: SearchRequest, db: Session = Depends(get_db)) -> SearchResponse:
     cfg = Settings()
     client = _get_os_client()
 
+    # Read enrichment model from DB
+    ts = db.query(TranslationSettings).first()
+    enrichment_model = ts.enrichment_model if ts else ""
+
     query_enriched: str | None = None
     fallback_used = False
     latency_start = datetime.now(timezone.utc)
@@ -53,9 +57,9 @@ def search(req: SearchRequest, db: Session = Depends(get_db)) -> SearchResponse:
     search_query = req.query
     enrich_attempted = False
 
-    if req.enrich:
+    if req.enrich and enrichment_model:
         try:
-            llm = LLMClient(cfg.enrichment_model, ollama_host=cfg.ollama_host)
+            llm = LLMClient(enrichment_model, ollama_host=cfg.ollama_host, openrouter_api_key=cfg.openrouter_api_key)
             query_enriched = llm.translate(
                 req.query,
                 prompt_template="Expand this search query with synonyms and related terms for better retrieval. Output only the expanded query, no explanation:\n\n{text}",
