@@ -16,6 +16,7 @@ def _read_version() -> str:
         return tomllib.load(f)["project"]["version"]
 from fastapi.responses import FileResponse, Response
 
+from app.routers import admin as admin_router
 from app.routers import files as files_router
 from app.routers import folders as folders_router
 from app.routers import search as search_router
@@ -45,6 +46,7 @@ app.include_router(folders_router.router)
 app.include_router(sync_router.router)
 app.include_router(files_router.router)
 app.include_router(search_router.router)
+app.include_router(admin_router.router)
 
 
 @app.get("/{full_path:path}", include_in_schema=False)
