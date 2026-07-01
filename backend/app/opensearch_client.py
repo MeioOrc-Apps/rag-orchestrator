@@ -209,6 +209,16 @@ class OpenSearchClient:
             "index_size_mb": round(size_bytes / (1024 * 1024), 2),
         }
 
+    def forcemerge(self, domain: str, max_num_segments: int = 1) -> None:
+        """Force merge index segments for a domain to optimize search performance."""
+        index = self._index_name(domain)
+        with httpx.Client(timeout=self._timeout) as client:
+            resp = client.post(
+                f"{self._host}/{index}/_forcemerge",
+                params={"max_num_segments": max_num_segments},
+            )
+            resp.raise_for_status()
+
 
 def _json_line(obj: dict) -> str:
     import json
