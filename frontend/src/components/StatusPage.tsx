@@ -87,13 +87,16 @@ export function StatusPage() {
     try { await triggerSync(); await load() } finally { setSyncing(false) }
   }
 
-  const totalChunks     = stats?.chunks.total ?? 0
-  const translatedDone  = stats?.chunks.by_translation_status['done'] ?? 0
-  const indexedDone     = stats?.chunks.by_index_status['done'] ?? 0
-  const parseTotal      = stats?.files.total ?? 0
-  const parseDone       = stats?.files.by_parse_status['done'] ?? 0
-  const translateFailed = stats?.chunks.by_translation_status['failed'] ?? 0
-  const indexFailed     = stats?.chunks.by_index_status['failed'] ?? 0
+  const totalChunks            = stats?.chunks.total ?? 0
+  const translatedDone         = stats?.chunks.by_translation_status['done'] ?? 0
+  const indexedDone            = stats?.chunks.by_index_status['done'] ?? 0
+  const parseTotal             = stats?.files.total ?? 0
+  const parseDone              = stats?.files.by_parse_status['done'] ?? 0
+  const translateFailed        = stats?.chunks.by_translation_status['failed'] ?? 0
+  const indexFailed            = stats?.chunks.by_index_status['failed'] ?? 0
+  const translatedPendingReindex = stats?.chunks.translated_pending_reindex ?? 0
+  // Translated chunks already re-indexed with bilingual content
+  const translatedReindexed    = Math.max(0, translatedDone - translatedPendingReindex)
 
   const isActive = translatedDone < totalChunks || indexedDone < totalChunks
 
@@ -160,6 +163,18 @@ export function StatusPage() {
             )}
           </div>
           <ProgressBar value={indexedDone} total={totalChunks} color="var(--accent)" />
+
+          {translatedDone > 0 && (
+            <>
+              <div style={{ marginTop: 14, marginBottom: 6, fontSize: 12, color: 'var(--text-muted)' }}>
+                Tradução re-indexada (bilíngue)
+                {translatedPendingReindex > 0 && (
+                  <span style={{ color: '#f59e0b', marginLeft: 8 }}>{translatedPendingReindex} aguardando</span>
+                )}
+              </div>
+              <ProgressBar value={translatedReindexed} total={translatedDone} color="#10b981" />
+            </>
+          )}
         </div>
       )}
 
