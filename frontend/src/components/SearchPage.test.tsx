@@ -12,7 +12,7 @@ const mockHit: api.SearchHit = {
   content_en: 'This is the English content of the chunk.',
   content_pt: 'Este é o conteúdo em português.',
   score: 1.42,
-  highlights: {},
+  highlight: '',
 }
 
 const mockResponse: api.SearchResponse = {
