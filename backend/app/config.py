@@ -8,7 +8,6 @@ class Settings(BaseSettings):
     docling_base_url: str = ""
     opensearch_host: str = "http://host.docker.internal:9200"
     opensearch_index_prefix: str = "rag"
-    input_dir: str = "/data/inputs"
 
     ollama_host: str = "http://host.docker.internal:11434"
     openrouter_api_key: str = ""

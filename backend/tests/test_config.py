@@ -14,7 +14,7 @@ def _clear_settings_cache():
 
 
 _OPTIONAL_VARS_TO_CLEAR = [
-    "OPENSEARCH_HOST", "INPUT_DIR", "DOCLING_BASE_URL",
+    "OPENSEARCH_HOST", "DOCLING_BASE_URL",
     "OLLAMA_HOST", "OPENROUTER_API_KEY",
     "OPENSEARCH_INDEX_PREFIX", "SCAN_INTERVAL_MINUTES", "PARSE_INTERVAL_MINUTES",
     "TRANSLATE_INTERVAL_MINUTES", "INDEX_INTERVAL_MINUTES", "MCP_PORT",
@@ -49,7 +49,6 @@ def test_config_has_correct_defaults(monkeypatch):
     settings = _make_settings(monkeypatch)
     assert settings.opensearch_host == "http://host.docker.internal:9200"
     assert settings.opensearch_index_prefix == "rag"
-    assert settings.input_dir == "/data/inputs"
     assert settings.docling_base_url == ""
     assert settings.ollama_host == "http://host.docker.internal:11434"
     assert settings.openrouter_api_key == ""
@@ -63,12 +62,10 @@ def test_config_has_correct_defaults(monkeypatch):
 def test_config_optional_vars_overridable(monkeypatch):
     settings = _make_settings(monkeypatch, overrides={
         "OPENSEARCH_HOST": "http://192.168.1.10:9200",
-        "INPUT_DIR": "/mnt/nas/docs",
         "SCAN_INTERVAL_MINUTES": "30",
         "OPENROUTER_API_KEY": "sk-or-test",
     })
     assert settings.opensearch_host == "http://192.168.1.10:9200"
-    assert settings.input_dir == "/mnt/nas/docs"
     assert settings.scan_interval_minutes == 30
     assert settings.openrouter_api_key == "sk-or-test"
 
@@ -88,6 +85,7 @@ def test_config_no_pipeline_fields_in_config(monkeypatch):
     assert not hasattr(settings, "chunk_overlap")
     assert not hasattr(settings, "enrichment_model")
     assert not hasattr(settings, "parse_batch_size")
+    assert not hasattr(settings, "input_dir")
 
 
 @pytest.mark.parametrize("missing_var", list(REQUIRED_VARS.keys()))
