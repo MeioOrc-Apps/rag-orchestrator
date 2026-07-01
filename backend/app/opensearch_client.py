@@ -65,7 +65,7 @@ class OpenSearchClient:
         self._timeout = timeout
 
     def _index_name(self, domain: str) -> str:
-        return f"{self._prefix}_{domain}"
+        return f"{self._prefix}_{domain}".lower()
 
     def ensure_index(self, domain: str) -> bool:
         """Create index with mapping if it doesn't exist. Idempotent."""
