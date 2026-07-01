@@ -26,8 +26,8 @@ export function AdminPage() {
     prompt_enrichment: '',
   })
   const [pipeForm, setPipeForm] = useState({
-    chunk_size: 300,
-    chunk_overlap: 30,
+    chunk_size: 500,
+    chunk_overlap: 50,
     parse_batch_size: 20,
     max_translation_retries: 3,
   })

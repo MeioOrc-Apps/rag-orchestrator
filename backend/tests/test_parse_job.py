@@ -66,15 +66,15 @@ class TestChunkText:
         from app.jobs.parse_job import chunk_text
 
         text = "Hello world. This is a short document that is long enough to not be discarded."
-        chunks = chunk_text(text, size=300, overlap=30)
+        chunks = chunk_text(text, size=500, overlap=50)
         assert len(chunks) == 1
         assert chunks[0] == text.strip()
 
     def test_long_text_splits_into_multiple_chunks(self):
         from app.jobs.parse_job import chunk_text
 
-        text = ("word " * 600).strip()  # 600 words
-        chunks = chunk_text(text, size=200, overlap=20)
+        text = ("word " * 1200).strip()  # 1200 words > 500
+        chunks = chunk_text(text, size=500, overlap=50)
         assert len(chunks) > 1
 
     def test_chunks_respect_max_word_count(self):
@@ -206,7 +206,7 @@ class TestParseJobInsertsChunks:
 
 
 class TestTranslationStatusOnInsert:
-    def test_english_chunks_get_source_language_en(self, db_session, file_in_db):
+    def test_english_file_all_chunks_get_source_language_en(self, db_session, file_in_db):
         from app.jobs.parse_job import run_parse
         from app.models import Chunk
 
@@ -225,7 +225,7 @@ class TestTranslationStatusOnInsert:
             assert chunk.translation_status == "pending"
             assert chunk.source_language == "en"
 
-    def test_portuguese_chunks_get_source_language_pt(self, db_session, file_in_db):
+    def test_portuguese_file_all_chunks_get_source_language_pt(self, db_session, file_in_db):
         from app.jobs.parse_job import run_parse
         from app.models import Chunk
 
@@ -243,38 +243,6 @@ class TestTranslationStatusOnInsert:
         for chunk in chunks:
             assert chunk.translation_status == "pending"
             assert chunk.source_language == "pt"
-
-    def test_each_chunk_gets_its_own_language_detection(self, db_session, file_in_db):
-        from app.jobs.parse_job import run_parse
-        from app.models import Chunk, PipelineSettings
-
-        # Use a small chunk size (50 words) so the two language sections split cleanly
-        ps = db_session.query(PipelineSettings).first()
-        if ps:
-            ps.chunk_size = 50
-            ps.chunk_overlap = 0
-        else:
-            db_session.add(PipelineSettings(chunk_size=50, chunk_overlap=0, parse_batch_size=20))
-        db_session.commit()
-
-        file_row, fpath = file_in_db
-        en_section = (
-            "The quick brown fox jumps over the lazy dog. "
-            "Natural language processing helps machines understand human text. " * 10
-        )  # ~130 words → 3 chunks of 50
-        pt_section = (
-            "O rato roeu a roupa do rei de Roma. "
-            "O processamento de linguagem natural ajuda as máquinas a entender textos. " * 10
-        )  # ~110 words → 3 chunks of 50
-        fpath.write_text(en_section + "\n\n" + pt_section)
-
-        run_parse(db_session)
-
-        chunks = db_session.query(Chunk).filter(Chunk.file_id == file_row.id).all()
-        assert len(chunks) >= 4
-        langs = {c.source_language for c in chunks}
-        assert "en" in langs
-        assert "pt" in langs
 
 
 class TestParseJobErrorHandling:

@@ -33,7 +33,7 @@ def detect_language(text: str) -> str:
         return "unknown"
 
 
-def chunk_text(text: str, size: int = 300, overlap: int = 30) -> list[str]:
+def chunk_text(text: str, size: int = 500, overlap: int = 50) -> list[str]:
     """Split text into chunks of `size` words with `overlap` word overlap."""
     words = text.split()
     chunks: list[str] = []
@@ -93,8 +93,8 @@ def run_parse_job() -> None:
 
 def run_parse(db: Session, docling_base_url: str = "") -> dict:
     pipeline_cfg = db.query(PipelineSettings).first()
-    chunk_size = pipeline_cfg.chunk_size if pipeline_cfg else 300
-    chunk_overlap = pipeline_cfg.chunk_overlap if pipeline_cfg else 30
+    chunk_size = pipeline_cfg.chunk_size if pipeline_cfg else 500
+    chunk_overlap = pipeline_cfg.chunk_overlap if pipeline_cfg else 50
     batch_size = pipeline_cfg.parse_batch_size if pipeline_cfg else 20
 
     files = (
@@ -111,8 +111,8 @@ def run_parse(db: Session, docling_base_url: str = "") -> dict:
         try:
             text = _read_file(file_row.path, docling_base_url)
             raw_chunks = chunk_text(text, size=chunk_size, overlap=chunk_overlap)
+            lang = detect_language(text)
             for idx, content in enumerate(raw_chunks):
-                lang = detect_language(content)
                 chunk = Chunk(
                     file_id=file_row.id,
                     chunk_index=idx,

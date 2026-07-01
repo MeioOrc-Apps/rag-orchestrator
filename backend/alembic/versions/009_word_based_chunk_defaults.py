@@ -14,13 +14,13 @@ depends_on = None
 
 
 def upgrade():
-    op.alter_column("pipeline_settings", "chunk_size", server_default="300")
-    op.alter_column("pipeline_settings", "chunk_overlap", server_default="30")
+    op.alter_column("pipeline_settings", "chunk_size", server_default="500")
+    op.alter_column("pipeline_settings", "chunk_overlap", server_default="50")
     op.execute(
         """
         UPDATE pipeline_settings
-        SET chunk_size = 300, chunk_overlap = 30
-        WHERE chunk_size = 1000 AND chunk_overlap = 100
+        SET chunk_size = 500, chunk_overlap = 50
+        WHERE chunk_size IN (1000, 300) AND chunk_overlap IN (100, 30)
         """
     )
 
@@ -32,6 +32,6 @@ def downgrade():
         """
         UPDATE pipeline_settings
         SET chunk_size = 1000, chunk_overlap = 100
-        WHERE chunk_size = 300 AND chunk_overlap = 30
+        WHERE chunk_size = 500 AND chunk_overlap = 50
         """
     )
