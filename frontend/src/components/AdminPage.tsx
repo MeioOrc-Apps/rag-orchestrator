@@ -301,7 +301,7 @@ export function AdminPage() {
               <div className="settings-field">
                 <label className="settings-label">
                   Chunk Size (words)
-                  <span className="settings-hint">Chars per chunk</span>
+                  <span className="settings-hint">Words per chunk</span>
                 </label>
                 <input
                   className="settings-input settings-input-sm"
